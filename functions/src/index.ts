@@ -20,7 +20,7 @@ let chat: Chat;
 
 export const callGemini = onCall<AiRequest>(
   functionOptions,
-  async (request): Promise<AiResponse | undefined> => {
+  async (request): Promise<AiResponse> => {
     if (!ai) {
       ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
       chat = ai.chats.create({ model, config: chatConfig });

@@ -78,9 +78,8 @@ export const AiContent = ({ onThemeChange }: AiContentProps): JSX.Element => {
         });
 
         addHistory(response.id, 'model', response.response ?? '');
+        setPrompt('');
       }
-
-      setPrompt('');
     }
 
     setIsPromptSubmitted(false);

@@ -11,6 +11,10 @@ export const getAiResponse = async (
     'callGemini',
   );
 
-  const response = await callGeminiFunction({ prompt, systemInstruction });
-  return response.data;
+  try {
+    const response = await callGeminiFunction({ prompt, systemInstruction });
+    return response.data;
+  } catch {
+    return undefined;
+  }
 };
