@@ -6,9 +6,8 @@ import { nonMonogamyWifeWithHusband3 as systemInstruction } from './system-instr
 export const getAiResponse = async (
   prompt: string,
 ): Promise<AiResponse | undefined> => {
-  const functions = getFunctions();
   const callGeminiFunction = httpsCallable<AiRequest, AiResponse>(
-    functions,
+    getFunctions(),
     'callGemini',
   );
 
