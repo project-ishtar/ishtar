@@ -17,9 +17,13 @@ import HourglassBottomTwoToneIcon from '@mui/icons-material/HourglassBottomTwoTo
 
 type AiContentProps = {
   onThemeChange: (theme: PaletteMode) => void;
+  systemInstruction: string;
 };
 
-export const AiContent = ({ onThemeChange }: AiContentProps): JSX.Element => {
+export const AiContent = ({
+  onThemeChange,
+  systemInstruction,
+}: AiContentProps): JSX.Element => {
   const [prompt, setPrompt] = useState<string>();
   const [response, setResponse] = useState<AiResponse>();
 
@@ -68,7 +72,7 @@ export const AiContent = ({ onThemeChange }: AiContentProps): JSX.Element => {
 
       setIsPromptSubmitted(true);
 
-      const response = await getAiResponse(prompt);
+      const response = await getAiResponse(prompt, systemInstruction);
 
       if (response) {
         setResponse({
@@ -87,7 +91,7 @@ export const AiContent = ({ onThemeChange }: AiContentProps): JSX.Element => {
     if (!isSmallBreakpoint) {
       inputRef.current?.focus();
     }
-  }, [addHistory, isSmallBreakpoint, prompt]);
+  }, [addHistory, isSmallBreakpoint, prompt, systemInstruction]);
 
   const onInputKeyDown = useCallback(
     (event: React.KeyboardEvent) => {

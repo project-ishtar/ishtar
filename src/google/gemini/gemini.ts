@@ -1,10 +1,10 @@
 import type { AiResponse } from '../../types/ai-response.ts';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import type { AiRequest } from '../../types/ai-request.ts';
-import { nonMonogamyWifeWithHusband3 as systemInstruction } from './system-instructions.ts';
 
 export const getAiResponse = async (
   prompt: string,
+  systemInstruction: string,
 ): Promise<AiResponse | undefined> => {
   const callGeminiFunction = httpsCallable<AiRequest, AiResponse>(
     getFunctions(),
