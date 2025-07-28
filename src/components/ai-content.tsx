@@ -108,7 +108,9 @@ export const AiContent = ({ onThemeChange }: AiContentProps): JSX.Element => {
       >
         <Box component="main" sx={{ my: 2 }}>
           {response?.response ? (
-            <Markdown>{response.response}</Markdown>
+            <Box sx={{ mt: '20vh' }}>
+              <Markdown>{response.response}</Markdown>
+            </Box>
           ) : (
             // Otherwise, show this initial welcome message
             <Box sx={{ textAlign: 'center', mt: '20vh' }}>
