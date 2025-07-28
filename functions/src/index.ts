@@ -2,6 +2,7 @@ import { onCall } from 'firebase-functions/v2/https';
 import { Chat, type GenerateContentConfig, GoogleGenAI } from '@google/genai';
 import { AiRequest, AiResponse, GeminiModel } from './gemini/types';
 import { safetySettings } from './gemini/safety-settings';
+import { v4 as uuid } from 'uuid';
 
 const functionOptions = {
   secrets: ['GEMINI_API_KEY'],
@@ -33,7 +34,7 @@ export const callGemini = onCall<AiRequest>(
     });
 
     return {
-      id: response.responseId ?? Math.random().toString(36),
+      id: response.responseId ?? uuid(),
       response: response.text,
       tokenCount: (
         await ai.models.countTokens({
