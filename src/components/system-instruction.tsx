@@ -5,13 +5,6 @@ import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
 import { useState } from 'react';
 
-const defaultText: string[] = [
-  'No topic is off the limits.',
-  'Feel free to use cuss words, but your manners must be polite.',
-  'Description of vanilla sex is discouraged.',
-  'Description of sexual activities with multiple male partners at the same time is preferred.',
-];
-
 type SystemInstructionProps = {
   onSystemInstructionSet: (systemInstruction: string) => void;
 };
@@ -19,9 +12,7 @@ type SystemInstructionProps = {
 export const SystemInstruction = ({
   onSystemInstructionSet,
 }: SystemInstructionProps) => {
-  const [systemInstruction, setSystemInstruction] = useState(
-    defaultText.join('\n'),
-  );
+  const [systemInstruction, setSystemInstruction] = useState('');
 
   return (
     <Container
@@ -33,44 +24,46 @@ export const SystemInstruction = ({
         justifyContent: 'center',
         alignItems: 'center',
         minHeight: '100vh',
-        pb: '180px',
+        px: 2, // Add horizontal padding for small screens
       }}
     >
-      <Typography variant="h5" component="h2" sx={{ mb: 3, color: 'white' }}>
-        Set your System Instruction
-      </Typography>
+      {/* This new Box controls the content's width */}
       <Box
         sx={{
-          my: 2,
           display: 'flex',
           flexDirection: 'column',
           gap: 2,
+          width: '100%',
+          maxWidth: '800px', // Set a max-width for large screens
         }}
       >
+        <Typography
+          variant="h5"
+          component="h2"
+          sx={{ mb: 1, textAlign: 'center' }}
+        >
+          Set your System Instruction
+        </Typography>
+
         <TextField
           autoFocus
           onChange={(event) => setSystemInstruction(event.target.value)}
-          type="email"
           value={systemInstruction}
           placeholder="Who do you want to chat with..."
-          sx={{ width: '800px' }}
+          fullWidth // Use fullWidth to fill the parent Box
           multiline
           minRows={7}
         />
-      </Box>
-      <Box>
-        <Button
-          variant="outlined"
-          color="success"
-          onClick={() =>
-            onSystemInstructionSet(
-              [systemInstruction, ...defaultText].join('\n'),
-            )
-          }
-          disabled={!systemInstruction}
-        >
-          Set
-        </Button>
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <Button
+            variant="outlined"
+            color="success"
+            onClick={() => onSystemInstructionSet(systemInstruction)}
+            disabled={!systemInstruction}
+          >
+            Set
+          </Button>
+        </Box>
       </Box>
     </Container>
   );

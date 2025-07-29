@@ -1,5 +1,5 @@
 import React, { type JSX, useCallback, useRef, useState } from 'react';
-import { getAiResponse } from '../google/gemini/gemini.ts';
+import { getAiResponse } from '../ai.ts';
 import Markdown from 'react-markdown';
 import type { AiResponse } from '../types/ai-response.ts';
 import type { History, Role } from '../types/history.ts';
