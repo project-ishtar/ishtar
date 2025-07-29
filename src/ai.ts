@@ -1,8 +1,10 @@
-import type { AiResponse } from './types/ai-response.ts';
 import { getFunctions, httpsCallable } from 'firebase/functions';
-import type { AiRequest } from './types/ai-request.ts';
 import { FirebaseError } from 'firebase/app';
-import type { ChatSettings } from './types/chat-settings.ts';
+import type {
+  AiRequest,
+  AiResponse,
+  ChatSettings,
+} from '@ishtar/commons/types';
 
 export const getAiResponse = async ({
   prompt,
@@ -16,7 +18,7 @@ export const getAiResponse = async ({
   try {
     const response = await callAi({
       prompt,
-      systemInstruction: chatSettings?.systemInstruction,
+      chatSettings,
     });
     return response.data;
   } catch (err: unknown) {

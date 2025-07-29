@@ -1,6 +1,6 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { type GenerateContentConfig, GoogleGenAI } from '@google/genai';
-import { AiRequest, AiResponse, GeminiModel } from './gemini/types';
+import { AiRequest, AiResponse, GeminiModel } from '@ishtar/commons/types';
 import { safetySettings } from './gemini/safety-settings';
 import { v4 as uuid } from 'uuid';
 
@@ -26,12 +26,17 @@ export const callAi = onCall<AiRequest>(
       );
     }
 
-    const { prompt, systemInstruction } = request.data;
+    const { prompt, chatSettings } = request.data;
+    const {
+      systemInstruction,
+      model: reqModel,
+      temperature,
+    } = chatSettings ?? {};
 
     const response = await ai.models.generateContent({
-      model,
+      model: reqModel ?? model,
       contents: prompt,
-      config: { ...chatConfig, systemInstruction },
+      config: { ...chatConfig, systemInstruction, temperature },
     });
 
     if (!response) {
@@ -53,7 +58,6 @@ export const callAi = onCall<AiRequest>(
       id: response.responseId ?? uuid(),
       response: response.text,
       tokenCount: response.usageMetadata?.totalTokenCount ?? 0,
-      timestamp: new Date(),
     };
   },
 );

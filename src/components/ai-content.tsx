@@ -1,7 +1,6 @@
 import React, { type JSX, useCallback, useRef, useState } from 'react';
 import { getAiResponse } from '../ai.ts';
 import Markdown from 'react-markdown';
-import type { AiResponse } from '../types/ai-response.ts';
 import type { History, Role } from '../types/history.ts';
 import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
@@ -16,7 +15,10 @@ import Brightness7Icon from '@mui/icons-material/Brightness7';
 import SettingsIcon from '@mui/icons-material/Settings';
 import HourglassBottomTwoToneIcon from '@mui/icons-material/HourglassBottomTwoTone';
 import { ChatSettings } from './chat-settings.tsx';
-import type { ChatSettings as ChatSettingsType } from '../types/chat-settings.ts';
+import type {
+  AiResponse,
+  ChatSettings as ChatSettingsType,
+} from '@ishtar/commons/types';
 
 type AiContentProps = {
   onThemeChange: (theme: PaletteMode) => void;

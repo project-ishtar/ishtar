@@ -9,7 +9,7 @@ import {
 } from '@mui/material';
 import Button from '@mui/material/Button';
 import { useState } from 'react';
-import type { ChatSettings as ChatSettingsType } from '../types/chat-settings.ts';
+import type { ChatSettings as ChatSettingsType } from '@ishtar/commons/types';
 
 type ChatSettingsProps = {
   isOpen: boolean;
