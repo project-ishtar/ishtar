@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "host": "npm run dev -- --host",
+    "firebaseFunctionEmulator": "firebase emulators:start --only functions",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
