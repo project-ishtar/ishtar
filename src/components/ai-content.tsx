@@ -13,17 +13,16 @@ import DownloadIcon from '@mui/icons-material/Download';
 import { type PaletteMode, useMediaQuery, useTheme } from '@mui/material';
 import Brightness4Icon from '@mui/icons-material/Brightness4';
 import Brightness7Icon from '@mui/icons-material/Brightness7';
+import SettingsIcon from '@mui/icons-material/Settings';
 import HourglassBottomTwoToneIcon from '@mui/icons-material/HourglassBottomTwoTone';
+import { ChatSettings } from './chat-settings.tsx';
+import type { ChatSettings as ChatSettingsType } from '../types/chat-settings.ts';
 
 type AiContentProps = {
   onThemeChange: (theme: PaletteMode) => void;
-  systemInstruction: string;
 };
 
-export const AiContent = ({
-  onThemeChange,
-  systemInstruction,
-}: AiContentProps): JSX.Element => {
+export const AiContent = ({ onThemeChange }: AiContentProps): JSX.Element => {
   const [prompt, setPrompt] = useState<string>();
   const [response, setResponse] = useState<AiResponse>();
 
@@ -35,6 +34,24 @@ export const AiContent = ({
 
   const theme = useTheme();
   const isSmallBreakpoint = useMediaQuery(theme.breakpoints.down('md'));
+
+  const [isSettingsOpen, setSettingsOpen] = useState(false);
+
+  const [chatSettings, setChatSettings] = useState<ChatSettingsType>({
+    systemInstruction: '',
+  });
+
+  const openSettings = useCallback(() => setSettingsOpen(true), []);
+
+  const closeSettings = useCallback(() => setSettingsOpen(false), []);
+
+  const saveAndCloseSettings = useCallback(
+    (newSettings: ChatSettingsType) => {
+      setChatSettings(newSettings);
+      closeSettings();
+    },
+    [closeSettings],
+  );
 
   const addHistory = useCallback(
     (id: string, role: Role, text: string) =>
@@ -72,7 +89,7 @@ export const AiContent = ({
 
       setIsPromptSubmitted(true);
 
-      const response = await getAiResponse(prompt, systemInstruction);
+      const response = await getAiResponse({ prompt, chatSettings });
 
       if (response) {
         setResponse({
@@ -91,7 +108,7 @@ export const AiContent = ({
     if (!isSmallBreakpoint) {
       inputRef.current?.focus();
     }
-  }, [addHistory, isSmallBreakpoint, prompt, systemInstruction]);
+  }, [addHistory, chatSettings, isSmallBreakpoint, prompt]);
 
   const onInputKeyDown = useCallback(
     (event: React.KeyboardEvent) => {
@@ -104,10 +121,40 @@ export const AiContent = ({
 
   return (
     <>
+      <Box
+        sx={{
+          position: 'absolute',
+          top: 16,
+          right: 16,
+          display: 'flex',
+          gap: 1, // Manages the space between the icons
+        }}
+      >
+        {/* Theme Toggle Button */}
+        <IconButton
+          color="inherit"
+          onClick={() =>
+            onThemeChange(theme.palette.mode === 'dark' ? 'light' : 'dark')
+          }
+        >
+          {theme.palette.mode === 'dark' ? (
+            <Brightness7Icon />
+          ) : (
+            <Brightness4Icon />
+          )}
+        </IconButton>
+        <IconButton
+          aria-label="settings"
+          onClick={openSettings}
+          color="inherit" // Keep color consistent
+        >
+          <SettingsIcon />
+        </IconButton>
+      </Box>
       <StyledPaddedContainer
         maxWidth={false}
         disableGutters
-        sx={{ pb: '180px' }}
+        sx={{ pb: '180px', position: 'relative' }}
       >
         <Box component="main" sx={{ my: 2 }}>
           {response?.response ? (
@@ -181,21 +228,6 @@ export const AiContent = ({
                   ml: 'auto',
                 }}
               >
-                <IconButton
-                  color="inherit"
-                  onClick={() =>
-                    onThemeChange(
-                      theme.palette.mode === 'dark' ? 'light' : 'dark',
-                    )
-                  }
-                >
-                  {theme.palette.mode === 'dark' ? (
-                    <Brightness7Icon />
-                  ) : (
-                    <Brightness4Icon />
-                  )}
-                </IconButton>
-
                 {response?.tokenCount ? (
                   <Typography variant="caption">
                     {`${response.tokenCount} tokens used`}
@@ -206,6 +238,12 @@ export const AiContent = ({
           </StyledPaddedContainer>
         </Box>
       </StyledPaddedContainer>
+      <ChatSettings
+        isOpen={isSettingsOpen}
+        onClose={closeSettings}
+        onSave={saveAndCloseSettings}
+        chatSettings={chatSettings}
+      />
     </>
   );
 };
