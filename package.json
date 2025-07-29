@@ -11,7 +11,7 @@
     "vite": "vite",
     "dev:ui": "npm run vite -- --host",
     "watch:functions": "npm run build:watch --prefix functions",
-    "start:functionEmulator": "firebase emulators:start --only functions",
+    "start:functionEmulator": "firebase emulators:start --only functions,firestore,auth --import=./firebase-data --export-on-exit",
     "dev": "npm-run-all --parallel dev:ui watch:functions start:functionEmulator",
     "build": "tsc -b && vite build",
     "lint": "eslint .",

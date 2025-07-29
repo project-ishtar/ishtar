@@ -9,6 +9,12 @@ import {
   getFunctions,
   connectFunctionsEmulator,
 } from 'firebase/functions';
+import { type Auth, getAuth, connectAuthEmulator } from 'firebase/auth';
+import {
+  type Firestore,
+  getFirestore,
+  connectFirestoreEmulator,
+} from 'firebase/firestore';
 
 const firebaseConfig: FirebaseOptions = {
   apiKey: 'AIzaSyDK1qKJ1HOZh4_6wGwO48Z31kC7StNmJR4',
@@ -21,29 +27,47 @@ const firebaseConfig: FirebaseOptions = {
 };
 
 export class FirebaseAppConfig {
-  private static app: FirebaseApp;
-  private static analytics: Analytics;
-  private static functions: Functions;
+  private static _app: FirebaseApp;
+  private static _analytics: Analytics;
+  private static _functions: Functions;
+  private static _auth: Auth;
+  private static _firestore: Firestore;
 
   constructor() {
-    FirebaseAppConfig.app = initializeApp(firebaseConfig);
-    FirebaseAppConfig.analytics = getAnalytics(FirebaseAppConfig.app);
-    FirebaseAppConfig.functions = getFunctions();
+    const _app = initializeApp(firebaseConfig);
+
+    FirebaseAppConfig._app = _app;
+    FirebaseAppConfig._analytics = getAnalytics(_app);
+    FirebaseAppConfig._functions = getFunctions(_app);
+    FirebaseAppConfig._auth = getAuth(_app);
+    FirebaseAppConfig._firestore = getFirestore(_app);
 
     if (window.location.hostname === 'localhost') {
-      connectFunctionsEmulator(FirebaseAppConfig.functions, 'localhost', 5001);
+      connectFunctionsEmulator(FirebaseAppConfig._functions, 'localhost', 5001);
+      connectAuthEmulator(FirebaseAppConfig._auth, 'http://localhost:9099');
+      connectFirestoreEmulator(FirebaseAppConfig._firestore, 'localhost', 8080);
     }
   }
 
-  getApp() {
-    return FirebaseAppConfig.app;
+  get app() {
+    return FirebaseAppConfig._app;
   }
 
-  getAnalytics() {
-    return FirebaseAppConfig.analytics;
+  get analytics() {
+    return FirebaseAppConfig._analytics;
   }
 
-  getFunctions() {
-    return FirebaseAppConfig.functions;
+  get functions() {
+    return FirebaseAppConfig._functions;
+  }
+
+  get auth(): Auth {
+    return FirebaseAppConfig._auth;
+  }
+
+  get firestore(): Firestore {
+    return FirebaseAppConfig._firestore;
   }
 }
+
+export const firebaseApp = new FirebaseAppConfig();

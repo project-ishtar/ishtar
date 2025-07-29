@@ -1,18 +1,48 @@
-rules_version='2'
+rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    // --- 1. Global Application Settings ---
+    // This document stores configuration.
+    // Read access is now restricted to authenticated users.
+    // Writes are restricted to trusted admins or backend processes (via Admin SDK).
+    match /_settings/{settingId} {
+      // Allow read only if the user is authenticated.
+      // This means unauthenticated users (request.auth == null) cannot read this.
+      allow read: if request.auth != null;
+
+      // Allow writes ONLY by a specific admin UID or by server-side code (via service account)
+      allow write: if request.auth != null && request.auth.token.admin == true;
+      // As discussed, if only Cloud Functions write, you could use 'if request.auth == null;' here,
+      // but the custom claim method is generally more explicit for administrative access.
+    }
+
+    // --- 2. User Profiles and User-Specific Data ---
+    // (This section remains unchanged from our previous discussion)
+    match /users/{userId} {
+      allow read: if request.auth.uid == userId;
+      allow create: if request.auth.uid == userId
+                       && request.resource.data.email == request.auth.token.email
+                       && request.resource.data.displayName == request.auth.token.name;
+      allow update: if request.auth.uid == userId;
+      allow delete: if request.auth.uid == userId;
+
+      match /conversations/{conversationId} {
+        allow read, write: if request.auth.uid == userId;
+
+        match /messages/{messageId} {
+          allow read, write: if request.auth.uid == userId;
+          allow write: if request.resource.data.role in ['user', 'model', 'system'] &&
+                          request.resource.data.content is string &&
+                          request.resource.data.timestamp is timestamp;
+        }
+      }
+    }
+
+    // --- Deny All Unmatched Paths ---
     match /{document=**} {
-      // This rule allows anyone with your database reference to view, edit,
-      // and delete all data in your database. It is useful for getting
-      // started, but it is configured to expire after 30 days because it
-      // leaves your app open to attackers. At that time, all client
-      // requests to your database will be denied.
-      //
-      // Make sure to write security rules for your app before that time, or
-      // else all client requests to your database will be denied until you
-      // update your rules.
-      allow read, write: if request.time < timestamp.date(2025, 8, 27);
+      allow read, write: if false;
     }
   }
 }
