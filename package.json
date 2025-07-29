@@ -1,13 +1,18 @@
 {
   "name": "ishtar",
   "private": true,
-  "workspaces": ["functions", "packages/commons"],
+  "workspaces": [
+    "functions",
+    "packages/commons"
+  ],
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "host": "npm run dev -- --host",
-    "firebaseFunctionEmulator": "firebase emulators:start --only functions",
+    "vite": "vite",
+    "dev:ui": "npm run vite -- --host",
+    "watch:functions": "npm run build:watch --prefix functions",
+    "start:functionEmulator": "firebase emulators:start --only functions",
+    "dev": "npm-run-all --parallel dev:ui watch:functions start:functionEmulator",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
@@ -35,6 +40,7 @@
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
     "globals": "^16.3.0",
+    "npm-run-all": "^4.1.5",
     "prettier": "3.6.2",
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.35.1",
