@@ -3,46 +3,52 @@ name: Deploy to Firebase
 on:
   push:
     branches:
-      - master # Trigger on pushes to the master branch
+      - master
 
 jobs:
   build_and_deploy:
-    runs-on: ubuntu-latest # Use a Linux environment
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4 # Action to checkout your code
+        uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22' # Using Node.js 22
-          cache: 'npm' # Cache npm dependencies
+          node-version: '22'
+          cache: 'npm'
 
       - name: Install Frontend Dependencies
-        run: npm install # Or yarn install if you use yarn
+        run: npm install
 
       - name: Build React App
-        run: npm run build # This assumes your package.json has a "build" script for Vite
+        run: npm run build
 
-      # --- Firebase Functions specific steps (only install dependencies, build is handled by deploy) ---
       - name: Install Firebase Functions Dependencies
-        run: npm install # Or yarn install
-        working-directory: functions # IMPORTANT: Run this command inside the 'functions' directory
-      # --- End Firebase Functions specific steps ---
+        run: npm install
+        working-directory: functions
 
       - name: Install Firebase CLI
-        run: npm install -g firebase-tools # Install Firebase CLI globally
+        run: npm install -g firebase-tools
 
       - name: Authenticate with Service Account and Deploy
         run: |
-          # Create a temporary file for the service account key
-          echo "${{ secrets.GCP_SA_KEY }}" > ./gcp-sa-key.json
+          # Decode the base64 secret and write it to a temporary file
+          echo "${{ secrets.GCP_SA_KEY_B64 }}" | base64 --decode > ./gcp-sa-key.json
+          
+          # Optional: Add a debug line to verify file content (will be redacted but helps confirm file exists)
+          echo "Service account key file created. First few lines:"
+          head -n 5 ./gcp-sa-key.json
+          
           # Set the GOOGLE_APPLICATION_CREDENTIALS environment variable
           export GOOGLE_APPLICATION_CREDENTIALS="./gcp-sa-key.json"
+          
           # Deploy using the authenticated service account
-          firebase deploy --only hosting,functions
+          firebase deploy --only hosting,functions --debug # Add --debug for verbose Firebase CLI output
+          
           # Clean up the temporary file (important for security)
           rm ./gcp-sa-key.json
         env:
-          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }} # This passes the secret content to the step
+          # Pass the base64 encoded secret to the step
+          GCP_SA_KEY_B64: ${{ secrets.GCP_SA_KEY_B64 }}
