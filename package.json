@@ -1,6 +1,7 @@
 {
   "name": "ishtar",
   "private": true,
+  "workspaces": ["functions", "packages/commons"],
   "version": "0.0.0",
   "type": "module",
   "scripts": {
