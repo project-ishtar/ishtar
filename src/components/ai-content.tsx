@@ -9,21 +9,18 @@ import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
 import IconButton from '@mui/material/IconButton';
 import DownloadIcon from '@mui/icons-material/Download';
-import { type PaletteMode, useMediaQuery, useTheme } from '@mui/material';
-import Brightness4Icon from '@mui/icons-material/Brightness4';
-import Brightness7Icon from '@mui/icons-material/Brightness7';
+import { useColorScheme, useMediaQuery, useTheme } from '@mui/material';
+import DarkModeIcon from '@mui/icons-material/DarkMode';
+import LightModeIcon from '@mui/icons-material/LightMode';
 import SettingsIcon from '@mui/icons-material/Settings';
+import Tooltip from '@mui/material/Tooltip';
 import { ChatSettings } from './chat-settings.tsx';
 import type {
   AiResponse,
   ChatSettings as ChatSettingsType,
 } from '@ishtar/commons/types';
 
-type AiContentProps = {
-  onThemeChange: (theme: PaletteMode) => void;
-};
-
-export const AiContent = ({ onThemeChange }: AiContentProps): JSX.Element => {
+export const AiContent = (): JSX.Element => {
   const [prompt, setPrompt] = useState<string>();
   const [response, setResponse] = useState<AiResponse>();
 
@@ -35,6 +32,8 @@ export const AiContent = ({ onThemeChange }: AiContentProps): JSX.Element => {
 
   const theme = useTheme();
   const isSmallBreakpoint = useMediaQuery(theme.breakpoints.down('md'));
+
+  const colorScheme = useColorScheme();
 
   const [isSettingsOpen, setSettingsOpen] = useState(false);
 
@@ -135,13 +134,17 @@ export const AiContent = ({ onThemeChange }: AiContentProps): JSX.Element => {
         <IconButton
           color="inherit"
           onClick={() =>
-            onThemeChange(theme.palette.mode === 'dark' ? 'light' : 'dark')
+            colorScheme.setMode(colorScheme.mode === 'dark' ? 'light' : 'dark')
           }
         >
           {theme.palette.mode === 'dark' ? (
-            <Brightness7Icon />
+            <Tooltip title="Switch to Light Mode">
+              <LightModeIcon />
+            </Tooltip>
           ) : (
-            <Brightness4Icon />
+            <Tooltip title="Switch to Dark Mode">
+              <DarkModeIcon />
+            </Tooltip>
           )}
         </IconButton>
         <IconButton
@@ -149,7 +152,9 @@ export const AiContent = ({ onThemeChange }: AiContentProps): JSX.Element => {
           onClick={openSettings}
           color="inherit" // Keep color consistent
         >
-          <SettingsIcon />
+          <Tooltip title="Chat Settings">
+            <SettingsIcon />
+          </Tooltip>
         </IconButton>
       </Box>
       <StyledPaddedContainer
@@ -212,9 +217,11 @@ export const AiContent = ({ onThemeChange }: AiContentProps): JSX.Element => {
                 Submit
               </Button>
               {history.length > 0 ? (
-                <IconButton onClick={downloadHistory}>
-                  <DownloadIcon />
-                </IconButton>
+                <Tooltip title="Download Chat History">
+                  <IconButton onClick={downloadHistory}>
+                    <DownloadIcon />
+                  </IconButton>
+                </Tooltip>
               ) : null}
               <Box
                 sx={{
