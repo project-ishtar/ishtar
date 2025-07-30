@@ -13,7 +13,6 @@ import { type PaletteMode, useMediaQuery, useTheme } from '@mui/material';
 import Brightness4Icon from '@mui/icons-material/Brightness4';
 import Brightness7Icon from '@mui/icons-material/Brightness7';
 import SettingsIcon from '@mui/icons-material/Settings';
-import HourglassBottomTwoToneIcon from '@mui/icons-material/HourglassBottomTwoTone';
 import { ChatSettings } from './chat-settings.tsx';
 import type {
   AiResponse,
@@ -208,15 +207,10 @@ export const AiContent = ({ onThemeChange }: AiContentProps): JSX.Element => {
                 onClick={onSubmit}
                 variant="outlined"
                 color="success"
-                disabled={!prompt}
+                disabled={!prompt || isPromptSubmitted}
               >
                 Submit
               </Button>
-              {isPromptSubmitted ? (
-                <IconButton>
-                  <HourglassBottomTwoToneIcon />
-                </IconButton>
-              ) : null}
               {history.length > 0 ? (
                 <IconButton onClick={downloadHistory}>
                   <DownloadIcon />
