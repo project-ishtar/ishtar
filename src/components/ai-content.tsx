@@ -120,6 +120,70 @@ export const AiContent = (): JSX.Element => {
     [onSubmit],
   );
 
+  const mainContent = response?.response ? (
+    <Box>
+      <Markdown>{response.response}</Markdown>
+    </Box>
+  ) : (
+    <Box sx={{ textAlign: 'center' }}>
+      <Typography variant="h4" gutterBottom>
+        How can I help you today?
+      </Typography>
+      <Typography variant="body1" color="text.secondary">
+        Your AI assistant is ready. Enter a prompt below to begin.
+      </Typography>
+    </Box>
+  );
+
+  const footerContent = (
+    <StyledPaddedContainer maxWidth={false} disableGutters sx={{ py: 2 }}>
+      <TextField
+        autoFocus
+        onChange={onPromptChange}
+        onKeyDown={onInputKeyDown}
+        placeholder="Prompt"
+        value={prompt}
+        multiline
+        fullWidth
+        inputRef={inputRef}
+        sx={{ mb: 2 }}
+      />
+      <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+        <LoadingButton
+          onClick={onSubmit}
+          variant="outlined"
+          color="success"
+          disabled={!prompt || isPromptSubmitted}
+          loading={isPromptSubmitted}
+          loadingIndicator={<CircularProgress size={20} color="info" />}
+        >
+          Submit
+        </LoadingButton>
+        {history.length > 0 ? (
+          <Tooltip title="Download Chat History">
+            <IconButton onClick={downloadHistory}>
+              <DownloadIcon />
+            </IconButton>
+          </Tooltip>
+        ) : null}
+        <Box
+          sx={{
+            display: 'flex',
+            gap: 1,
+            alignItems: 'center',
+            ml: 'auto',
+          }}
+        >
+          {response?.tokenCount ? (
+            <Typography variant="caption">
+              {`${response.tokenCount} tokens used`}
+            </Typography>
+          ) : null}
+        </Box>
+      </Box>
+    </StyledPaddedContainer>
+  );
+
   return (
     <>
       <Box
@@ -158,106 +222,74 @@ export const AiContent = (): JSX.Element => {
           </Tooltip>
         </IconButton>
       </Box>
-      <StyledPaddedContainer
-        maxWidth={false}
-        disableGutters
-        sx={{
-          pb: '180px',
-          position: 'relative',
-          height: '100vh',
-          display: 'flex',
-          flexDirection: 'column',
-        }}
-      >
-        <Box
-          component="main"
+      {isSmallBreakpoint ? (
+        <StyledPaddedContainer
+          maxWidth={false}
+          disableGutters
           sx={{
-            flexGrow: 1,
+            height: '100vh',
             display: 'flex',
             flexDirection: 'column',
-            justifyContent: response?.response ? 'flex-end' : 'center',
           }}
         >
-          {response?.response ? (
-            <Box>
-              <Markdown>{response.response}</Markdown>
-            </Box>
-          ) : (
-            // Otherwise, show this initial welcome message
-            <Box sx={{ textAlign: 'center' }}>
-              <Typography variant="h4" gutterBottom>
-                How can I help you today?
-              </Typography>
-              <Typography variant="body1" color="text.secondary">
-                Your AI assistant is ready. Enter a prompt below to begin.
-              </Typography>
-            </Box>
-          )}
-        </Box>
-        <Box
-          component="footer"
-          sx={(theme) => ({
-            position: 'fixed',
-            bottom: 0,
-            left: 0,
-            right: 0,
-            bgcolor: 'background.paper',
-            boxShadow:
-              theme.palette.mode === 'dark'
-                ? '0 -4px 12px rgba(0, 0, 0, 0.4)'
-                : '0 -2px 10px rgba(0, 0, 0, 0.1)',
-          })}
-        >
-          <StyledPaddedContainer maxWidth={false} disableGutters sx={{ py: 2 }}>
-            <TextField
-              autoFocus
-              onChange={onPromptChange}
-              onKeyDown={onInputKeyDown}
-              placeholder="Prompt"
-              value={prompt}
-              multiline
-              fullWidth
-              inputRef={inputRef}
-              sx={{ mb: 2 }}
-            />
-
-            {/* A simple Box to group the buttons */}
-            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-              <LoadingButton
-                onClick={onSubmit}
-                variant="outlined"
-                color="success"
-                disabled={!prompt || isPromptSubmitted}
-                loading={isPromptSubmitted}
-                loadingIndicator={<CircularProgress size={20} color="info" />}
-              >
-                Submit
-              </LoadingButton>
-              {history.length > 0 ? (
-                <Tooltip title="Download Chat History">
-                  <IconButton onClick={downloadHistory}>
-                    <DownloadIcon />
-                  </IconButton>
-                </Tooltip>
-              ) : null}
-              <Box
-                sx={{
-                  display: 'flex',
-                  gap: 1,
-                  alignItems: 'center',
-                  ml: 'auto',
-                }}
-              >
-                {response?.tokenCount ? (
-                  <Typography variant="caption">
-                    {`${response.tokenCount} tokens used`}
-                  </Typography>
-                ) : null}
-              </Box>
+          <Box
+            component="main"
+            sx={{
+              flexGrow: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: response?.response ? 'flex-end' : 'center',
+              // The alignItems property below has been removed
+            }}
+          >
+            {mainContent}
+          </Box>
+          <Box component="footer" sx={{ my: 2 }}>
+            {footerContent}
+          </Box>
+        </StyledPaddedContainer>
+      ) : (
+        <>
+          <StyledPaddedContainer
+            maxWidth={false}
+            disableGutters
+            sx={{
+              pb: '180px',
+              height: '100vh',
+              display: 'flex',
+              flexDirection: 'column',
+            }}
+          >
+            <Box
+              component="main"
+              sx={{
+                flexGrow: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: response?.response ? 'flex-end' : 'center',
+              }}
+            >
+              {mainContent}
             </Box>
           </StyledPaddedContainer>
-        </Box>
-      </StyledPaddedContainer>
+          <Box
+            component="footer"
+            sx={(theme) => ({
+              position: 'fixed',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              bgcolor: 'background.paper',
+              boxShadow:
+                theme.palette.mode === 'dark'
+                  ? '0 -4px 12px rgba(0, 0, 0, 0.4)'
+                  : '0 -2px 10px rgba(0, 0, 0, 0.1)',
+            })}
+          >
+            {footerContent}
+          </Box>
+        </>
+      )}
       <ChatSettings
         isOpen={isSettingsOpen}
         onClose={closeSettings}
