@@ -3,7 +3,6 @@ import { getAiResponse } from '../ai.ts';
 import Markdown from 'react-markdown';
 import type { History, Role } from '../types/history.ts';
 import TextField from '@mui/material/TextField';
-import Button from '@mui/material/Button';
 import { StyledPaddedContainer } from './ai-content.styles.ts';
 import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
@@ -15,6 +14,8 @@ import LightModeIcon from '@mui/icons-material/LightMode';
 import SettingsIcon from '@mui/icons-material/Settings';
 import Tooltip from '@mui/material/Tooltip';
 import { ChatSettings } from './chat-settings.tsx';
+import CircularProgress from '@mui/material/CircularProgress';
+import LoadingButton from '@mui/lab/LoadingButton';
 import type {
   AiResponse,
   ChatSettings as ChatSettingsType,
@@ -160,16 +161,30 @@ export const AiContent = (): JSX.Element => {
       <StyledPaddedContainer
         maxWidth={false}
         disableGutters
-        sx={{ pb: '180px', position: 'relative' }}
+        sx={{
+          pb: '180px',
+          position: 'relative',
+          height: '100vh',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
       >
-        <Box component="main" sx={{ my: 2 }}>
+        <Box
+          component="main"
+          sx={{
+            flexGrow: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: response?.response ? 'flex-end' : 'center',
+          }}
+        >
           {response?.response ? (
-            <Box sx={{ mt: '20vh' }}>
+            <Box>
               <Markdown>{response.response}</Markdown>
             </Box>
           ) : (
             // Otherwise, show this initial welcome message
-            <Box sx={{ textAlign: 'center', mt: '20vh' }}>
+            <Box sx={{ textAlign: 'center' }}>
               <Typography variant="h4" gutterBottom>
                 How can I help you today?
               </Typography>
@@ -208,14 +223,16 @@ export const AiContent = (): JSX.Element => {
 
             {/* A simple Box to group the buttons */}
             <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-              <Button
+              <LoadingButton
                 onClick={onSubmit}
                 variant="outlined"
                 color="success"
                 disabled={!prompt || isPromptSubmitted}
+                loading={isPromptSubmitted}
+                loadingIndicator={<CircularProgress size={20} color="info" />}
               >
                 Submit
-              </Button>
+              </LoadingButton>
               {history.length > 0 ? (
                 <Tooltip title="Download Chat History">
                   <IconButton onClick={downloadHistory}>
