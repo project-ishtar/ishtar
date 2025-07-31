@@ -1,12 +1,20 @@
 import type { GenerateContentConfig } from '@google/genai';
 import { safetySettings } from '../gemini/safety-settings';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
-import { AiRequest, AiResponse } from '@ishtar/commons/types';
+import {
+  AiRequest,
+  AiResponse,
+  Conversation,
+  Message,
+} from '@ishtar/commons/types';
 import { ai, db } from '../index';
-import { GlobalSettings } from '../firebase/types';
-import { v4 as uuid } from 'uuid';
-
-const GLOBAL_SETTINGS_DOC_PATH = '_settings/global';
+import { getGlobalSettings } from '../cache/cached-global-settings';
+import { DocumentData } from 'firebase/firestore';
+import {
+  FirestoreDataConverter,
+  QueryDocumentSnapshot,
+} from 'firebase-admin/firestore';
+import admin from 'firebase-admin';
 
 const functionOptions = {
   secrets: ['GEMINI_API_KEY'],
@@ -26,35 +34,84 @@ export const callAi = onCall<AiRequest>(
       );
     }
 
-    const { prompt, chatSettings } = request.data;
-    const {
-      systemInstruction,
-      model: reqModel,
-      temperature,
-    } = chatSettings ?? {};
+    const globalSettings = await getGlobalSettings();
 
-    let llmModel;
+    const { prompt, conversationId: convoId } = request.data;
 
-    if (!reqModel) {
-      const globalSettingsDoc = await db.doc(GLOBAL_SETTINGS_DOC_PATH).get();
-      const globalSettings = globalSettingsDoc.data() as GlobalSettings;
+    const conversationsRef = db
+      .collection('users')
+      .doc(request.auth.uid)
+      .collection('conversations');
 
-      llmModel = globalSettings.defaultGeminiModel;
-    } else {
-      llmModel = reqModel;
+    let conversationId = convoId;
+
+    if (!conversationId) {
+      const newConversationRef = conversationsRef.doc();
+
+      const newConversation: Conversation = {
+        id: newConversationRef.id,
+        createdAt:
+          admin.firestore.FieldValue.serverTimestamp() as unknown as Date,
+        lastUpdated:
+          admin.firestore.FieldValue.serverTimestamp() as unknown as Date,
+        isDeleted: false,
+        title: `New Chat - ${new Date().toLocaleDateString()}`,
+        chatSettings: {
+          model: globalSettings.defaultGeminiModel,
+          temperature: globalSettings.temperature,
+        },
+        messages: [],
+      };
+
+      conversationId = newConversationRef.id;
+
+      await newConversationRef.set(newConversation);
     }
 
-    if (!llmModel) {
-      throw new HttpsError('permission-denied', 'No LLM model found.');
+    const conversationRef = conversationsRef.doc(conversationId);
+    const conversationData = await conversationRef.get();
+
+    if (!conversationData.exists) {
+      throw new HttpsError(
+        'internal',
+        'Something went wrong while creating the conversation.',
+      );
     }
+
+    const conversation = conversationData.data() as Conversation;
+
+    const messagesRef = conversationRef
+      .collection('messages')
+      .withConverter(chatMessageConverter);
+
+    const batch = db.batch();
+
+    const newUserMessageRef = messagesRef.doc();
+
+    batch.set(newUserMessageRef, {
+      id: newUserMessageRef.id,
+      role: 'user',
+      content: prompt,
+      timestamp: new Date(),
+    } as Message);
 
     const response = await ai.models.generateContent({
-      model: llmModel,
+      model:
+        conversation?.chatSettings?.model ??
+        globalSettings?.defaultGeminiModel ??
+        'gemini-2.0-flash-lite',
       contents: prompt,
-      config: { ...chatConfig, systemInstruction, temperature },
+      config: {
+        ...chatConfig,
+        systemInstruction: conversation?.chatSettings?.systemInstruction ?? '',
+        temperature:
+          conversation?.chatSettings?.temperature ??
+          globalSettings?.temperature ??
+          1,
+      },
     });
 
-    if (!response) {
+    if (!response || !response.text) {
       throw new HttpsError(
         'internal',
         'The AI model failed to generate a response. Please try again.',
@@ -69,10 +126,53 @@ export const callAi = onCall<AiRequest>(
       );
     }
 
+    const newModelMessageRef = messagesRef.doc();
+
+    batch.set(newModelMessageRef, {
+      id: newModelMessageRef.id,
+      role: 'model',
+      content: response.text,
+      timestamp: new Date(),
+    } as Message);
+
+    batch.update(conversationRef, {
+      lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    await batch.commit();
+
+    console.log('Committed');
+
     return {
-      id: response.responseId ?? uuid(),
+      id: newModelMessageRef.id,
       response: response.text,
       tokenCount: response.usageMetadata?.totalTokenCount ?? 0,
+      conversationId,
     };
   },
 );
+
+export const chatMessageConverter: FirestoreDataConverter<Message> = {
+  toFirestore: (message: Message): DocumentData => {
+    return {
+      id: message.id,
+      role: message.role,
+      content: message.content,
+      timestamp:
+        message.timestamp instanceof Date
+          ? admin.firestore.Timestamp.fromDate(message.timestamp)
+          : message.timestamp,
+    };
+  },
+  fromFirestore: (snapshot: QueryDocumentSnapshot<Message>): Message => {
+    const data = snapshot.data();
+    return {
+      id: data.id,
+      role: data.role,
+      content: data.content,
+      timestamp: (
+        data.timestamp as unknown as admin.firestore.Timestamp
+      ).toDate(),
+    };
+  },
+};
