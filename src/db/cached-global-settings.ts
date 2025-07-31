@@ -1,5 +1,6 @@
-import { GlobalSettings } from '@ishtar/commons/types';
-import { db } from '../index';
+import type { GlobalSettings } from '@ishtar/commons/types';
+import { firebaseApp } from '../firebase.ts';
+import { doc, getDoc } from 'firebase/firestore';
 
 let cachedGlobalSettings: GlobalSettings | null = null;
 let cachedGlobalSettingsPromise: Promise<GlobalSettings> | null = null;
@@ -17,9 +18,9 @@ export async function getGlobalSettings(): Promise<GlobalSettings> {
 
   if (cachedGlobalSettingsPromise) return cachedGlobalSettingsPromise;
 
-  cachedGlobalSettingsPromise = db
-    .doc('_settings/global')
-    .get()
+  const globalSettingsDocRef = doc(firebaseApp.firestore, '_settings/global');
+
+  cachedGlobalSettingsPromise = getDoc(globalSettingsDocRef)
     .then((settingsDoc) => {
       const settings = (settingsDoc.data() ?? {}) as GlobalSettings;
 

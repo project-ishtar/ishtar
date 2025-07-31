@@ -14,32 +14,140 @@ import {
   Slider,
 } from '@mui/material';
 import Button from '@mui/material/Button';
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type {
-  ChatSettings as ChatSettingsType,
+  Conversation,
+  DraftConversation,
   GeminiModel,
 } from '@ishtar/commons/types';
+import { useNavigate, useParams } from 'react-router';
+import { firebaseApp } from '../firebase';
+import { getDoc, doc, collection, addDoc, updateDoc } from 'firebase/firestore';
+import { getGlobalSettings } from '../db/cached-global-settings.ts';
+import { conversationConverter } from '../converters/conversation-converter.ts';
 
 type ChatSettingsProps = {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (newSettings: ChatSettingsType) => void;
-  chatSettings?: ChatSettingsType;
 };
 
-export const ChatSettings = ({
-  isOpen,
-  onClose,
-  onSave,
-  chatSettings,
-}: ChatSettingsProps) => {
-  const [systemInstruction, setSystemInstruction] = useState(
-    chatSettings?.systemInstruction ?? '',
-  );
+export const ChatSettings = ({ isOpen, onClose }: ChatSettingsProps) => {
+  const params = useParams<{ conversationId?: string }>();
+  const navigate = useNavigate();
+
+  const [isLoading, setLoading] = useState(true);
+
+  const [chatTitle, setChatTitle] = useState('');
+
+  const [systemInstruction, setSystemInstruction] = useState<string>();
 
   const [temperature, setTemperature] = useState(1);
 
-  const [model, setModel] = useState<GeminiModel>('gemini-2.0-flash-lite');
+  const [model, setModel] = useState<GeminiModel>();
+
+  const initializeData = useCallback(async () => {
+    const currentUserId = firebaseApp.auth?.currentUser?.uid;
+    const conversationId = params.conversationId;
+
+    if (conversationId && currentUserId) {
+      const conversationDocRef = doc(
+        firebaseApp.firestore,
+        'users',
+        currentUserId,
+        'conversations',
+        conversationId,
+      ).withConverter(conversationConverter);
+
+      const conversationDocSnap = await getDoc(conversationDocRef);
+
+      if (conversationDocSnap.exists()) {
+        const conversation = conversationDocSnap.data() as Conversation;
+
+        setChatTitle(conversation?.title);
+        setSystemInstruction(
+          conversation?.chatSettings?.systemInstruction ?? undefined,
+        );
+        setTemperature(conversation?.chatSettings?.temperature ?? 1);
+        setModel(conversation?.chatSettings?.model ?? 'gemini-2.0-flash-lite');
+      }
+    } else {
+      const globalSettings = await getGlobalSettings();
+
+      setChatTitle(`New Chat - ${Date.now()}`);
+      setTemperature(globalSettings.temperature ?? 1);
+      setModel(globalSettings?.defaultGeminiModel ?? 'gemini-2.0-flash-lite');
+    }
+
+    setLoading(false);
+  }, [params.conversationId]);
+
+  useEffect(() => {
+    initializeData();
+  }, [initializeData]);
+
+  const onSave = useCallback(async () => {
+    const currentUserId = firebaseApp.auth?.currentUser?.uid;
+    const conversationId = params.conversationId;
+
+    if (currentUserId) {
+      if (!conversationId) {
+        const newConversation: DraftConversation = {
+          createdAt: new Date(),
+          lastUpdated: new Date(),
+          title: chatTitle,
+          isDeleted: false,
+          chatSettings: {
+            temperature,
+            model: model ?? null,
+            systemInstruction: systemInstruction ?? null,
+          },
+          tokenCount: 0,
+        };
+        const newDoc = await addDoc(
+          collection(
+            firebaseApp.firestore,
+            'users',
+            currentUserId,
+            'conversations',
+          ).withConverter(conversationConverter),
+          newConversation,
+        );
+
+        navigate(`/app/${newDoc.id}`);
+      } else {
+        await updateDoc(
+          doc(
+            firebaseApp.firestore,
+            'users',
+            currentUserId,
+            'conversations',
+            conversationId,
+          ).withConverter(conversationConverter),
+          {
+            lastUpdated: new Date(),
+            title: chatTitle,
+            chatSettings: {
+              temperature,
+              model: model ?? null,
+              systemInstruction: systemInstruction ?? null,
+            },
+          },
+        );
+      }
+
+      onClose();
+    }
+  }, [
+    chatTitle,
+    model,
+    navigate,
+    onClose,
+    params.conversationId,
+    systemInstruction,
+    temperature,
+  ]);
+
+  if (isLoading) return null;
 
   return (
     <Dialog open={isOpen} onClose={onClose} fullWidth maxWidth="md">
@@ -54,13 +162,22 @@ export const ChatSettings = ({
             mt: 2,
           }}
         >
-          {/* Group 1: System Instruction */}
+          <Box>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+              Title of the Chat.
+            </Typography>
+            <TextField
+              autoFocus
+              value={chatTitle}
+              onChange={(e) => setChatTitle(e.target.value)}
+              fullWidth
+            />
+          </Box>
           <Box>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
               Define the AI's behavior and personality for the conversation.
             </Typography>
             <TextField
-              autoFocus
               value={systemInstruction}
               onChange={(e) => setSystemInstruction(e.target.value)}
               multiline
@@ -68,8 +185,6 @@ export const ChatSettings = ({
               fullWidth
             />
           </Box>
-
-          {/* Group 2: Temperature */}
           <Box>
             <Typography variant="body2" color="text.secondary">
               Define the AI's Temperature.
@@ -82,12 +197,9 @@ export const ChatSettings = ({
               marks
               min={0.1}
               max={2}
-              // 2. Reduced width and centered with horizontal margin
               sx={{ width: '95%', mx: 'auto' }}
             />
           </Box>
-
-          {/* Group 3: AI Model */}
           <Box>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
               Define the AI Model.
@@ -113,10 +225,7 @@ export const ChatSettings = ({
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>Cancel</Button>
-        <Button
-          onClick={() => onSave({ systemInstruction })}
-          variant="contained"
-        >
+        <Button onClick={onSave} variant="contained" disabled={!chatTitle}>
           Save
         </Button>
       </DialogActions>

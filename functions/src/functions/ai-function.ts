@@ -1,20 +1,17 @@
-import type { GenerateContentConfig } from '@google/genai';
+import { Content, GenerateContentConfig } from '@google/genai';
 import { safetySettings } from '../gemini/safety-settings';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import {
   AiRequest,
   AiResponse,
   Conversation,
+  DraftConversation,
   Message,
 } from '@ishtar/commons/types';
 import { ai, db } from '../index';
 import { getGlobalSettings } from '../cache/cached-global-settings';
-import { DocumentData } from 'firebase/firestore';
-import {
-  FirestoreDataConverter,
-  QueryDocumentSnapshot,
-} from 'firebase-admin/firestore';
 import admin from 'firebase-admin';
+import { chatMessageConverter } from '../converters/message-converter';
 
 const functionOptions = {
   secrets: ['GEMINI_API_KEY'],
@@ -48,19 +45,19 @@ export const callAi = onCall<AiRequest>(
     if (!conversationId) {
       const newConversationRef = conversationsRef.doc();
 
-      const newConversation: Conversation = {
-        id: newConversationRef.id,
+      const newConversation: DraftConversation = {
         createdAt:
           admin.firestore.FieldValue.serverTimestamp() as unknown as Date,
         lastUpdated:
           admin.firestore.FieldValue.serverTimestamp() as unknown as Date,
         isDeleted: false,
-        title: `New Chat - ${new Date().toLocaleDateString()}`,
+        title: `New Chat - ${Date.now()}`,
         chatSettings: {
           model: globalSettings.defaultGeminiModel,
           temperature: globalSettings.temperature,
+          systemInstruction: null,
         },
-        messages: [],
+        tokenCount: 0,
       };
 
       conversationId = newConversationRef.id;
@@ -84,23 +81,35 @@ export const callAi = onCall<AiRequest>(
       .collection('messages')
       .withConverter(chatMessageConverter);
 
+    const messagesInOrderRef = await messagesRef
+      .orderBy('timestamp', 'asc')
+      .limit(25)
+      .get();
+
+    const contents: Content[] = [];
+
+    messagesInOrderRef.forEach((messageRef) => {
+      if (messageRef.exists) {
+        const message = messageRef.data() as Message;
+        contents.push({
+          role: message.role,
+          parts: [{ text: message.content }],
+        });
+      }
+    });
+
+    contents.push({ role: 'user', parts: [{ text: prompt }] });
+
     const batch = db.batch();
 
-    const newUserMessageRef = messagesRef.doc();
-
-    batch.set(newUserMessageRef, {
-      id: newUserMessageRef.id,
-      role: 'user',
-      content: prompt,
-      timestamp: new Date(),
-    } as Message);
+    const model =
+      conversation?.chatSettings?.model ??
+      globalSettings?.defaultGeminiModel ??
+      'gemini-2.0-flash-lite';
 
     const response = await ai.models.generateContent({
-      model:
-        conversation?.chatSettings?.model ??
-        globalSettings?.defaultGeminiModel ??
-        'gemini-2.0-flash-lite',
-      contents: prompt,
+      model,
+      contents,
       config: {
         ...chatConfig,
         systemInstruction: conversation?.chatSettings?.systemInstruction ?? '',
@@ -111,7 +120,43 @@ export const callAi = onCall<AiRequest>(
       },
     });
 
-    if (!response || !response.text) {
+    if (!response) {
+      throw new HttpsError('internal', 'Something went wrong.');
+    }
+
+    const totalTokenCount = response.usageMetadata?.totalTokenCount ?? 0;
+    const inputTokenCount = response.usageMetadata?.promptTokenCount ?? 0;
+    const outputTokenCount = response.usageMetadata?.candidatesTokenCount ?? 0;
+
+    const newUserMessageRef = messagesRef.doc();
+
+    batch.set(newUserMessageRef, {
+      role: 'user',
+      content: prompt,
+      timestamp: new Date(),
+      tokenCount: inputTokenCount,
+    } as Message);
+
+    const tokenCountForConversation =
+      (conversation.tokenCount ?? 0) + totalTokenCount;
+
+    batch.update(conversationRef, {
+      lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+      tokenCount: tokenCountForConversation,
+    });
+
+    const newModelMessageRef = messagesRef.doc();
+
+    batch.set(newModelMessageRef, {
+      role: 'model',
+      content: response.text,
+      timestamp: new Date(),
+      tokenCount: outputTokenCount,
+    } as Message);
+
+    await batch.commit();
+
+    if (!response.text) {
       throw new HttpsError(
         'internal',
         'The AI model failed to generate a response. Please try again.',
@@ -126,53 +171,11 @@ export const callAi = onCall<AiRequest>(
       );
     }
 
-    const newModelMessageRef = messagesRef.doc();
-
-    batch.set(newModelMessageRef, {
-      id: newModelMessageRef.id,
-      role: 'model',
-      content: response.text,
-      timestamp: new Date(),
-    } as Message);
-
-    batch.update(conversationRef, {
-      lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
-    });
-
-    await batch.commit();
-
-    console.log('Committed');
-
     return {
       id: newModelMessageRef.id,
       response: response.text,
-      tokenCount: response.usageMetadata?.totalTokenCount ?? 0,
+      tokenCount: tokenCountForConversation,
       conversationId,
     };
   },
 );
-
-export const chatMessageConverter: FirestoreDataConverter<Message> = {
-  toFirestore: (message: Message): DocumentData => {
-    return {
-      id: message.id,
-      role: message.role,
-      content: message.content,
-      timestamp:
-        message.timestamp instanceof Date
-          ? admin.firestore.Timestamp.fromDate(message.timestamp)
-          : message.timestamp,
-    };
-  },
-  fromFirestore: (snapshot: QueryDocumentSnapshot<Message>): Message => {
-    const data = snapshot.data();
-    return {
-      id: data.id,
-      role: data.role,
-      content: data.content,
-      timestamp: (
-        data.timestamp as unknown as admin.firestore.Timestamp
-      ).toDate(),
-    };
-  },
-};

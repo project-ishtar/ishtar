@@ -1,9 +1,9 @@
 import type { GeminiModel } from './ai-models.ts';
 
 export type ChatSettings = {
-  systemInstruction?: string;
-  temperature?: number;
-  model?: GeminiModel;
+  systemInstruction: string | null;
+  temperature: number | null;
+  model: GeminiModel | null;
 };
 
 export type Role = 'user' | 'model' | 'system';
@@ -13,7 +13,7 @@ export type Message = {
   role: Role;
   content: string;
   timestamp: Date;
-  tokenCount?: number;
+  tokenCount: number | null;
 };
 
 export type Conversation = {
@@ -23,5 +23,7 @@ export type Conversation = {
   title: string;
   isDeleted: boolean;
   chatSettings?: ChatSettings;
-  messages: Message[];
+  tokenCount: number | null;
 };
+
+export type DraftConversation = Omit<Conversation, 'id'>;
