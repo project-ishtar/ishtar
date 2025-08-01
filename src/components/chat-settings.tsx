@@ -96,6 +96,7 @@ export const ChatSettings = ({ isOpen, onClose }: ChatSettingsProps) => {
           lastUpdated: new Date(),
           title: chatTitle,
           isDeleted: false,
+          summarizedMessageId: null,
           chatSettings: {
             temperature,
             model: model ?? null,

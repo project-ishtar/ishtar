@@ -21,6 +21,27 @@ const chatConfig: GenerateContentConfig = {
   safetySettings,
 };
 
+function getContentsArray(
+  data: admin.firestore.QuerySnapshot<Message, admin.firestore.DocumentData>,
+): Content[] {
+  const contents: Content[] = [];
+
+  data.forEach((item) => {
+    if (item.exists) {
+      const message = item.data();
+
+      if (message.role !== 'system') {
+        contents.push({
+          role: message.role,
+          parts: [{ text: message.content }],
+        });
+      }
+    }
+  });
+
+  return contents;
+}
+
 export const callAi = onCall<AiRequest>(
   functionOptions,
   async (request): Promise<AiResponse> => {
@@ -57,6 +78,7 @@ export const callAi = onCall<AiRequest>(
           temperature: globalSettings.temperature,
           systemInstruction: null,
         },
+        summarizedMessageId: null,
         tokenCount: 0,
       };
 
@@ -81,23 +103,37 @@ export const callAi = onCall<AiRequest>(
       .collection('messages')
       .withConverter(chatMessageConverter);
 
-    const messagesInOrderRef = await messagesRef
-      .orderBy('timestamp', 'desc')
-      .get();
-
+    let messagesInOrderDoc: admin.firestore.QuerySnapshot<
+      Message,
+      admin.firestore.DocumentData
+    >;
     const contents: Content[] = [];
 
-    messagesInOrderRef.forEach((messageRef) => {
-      if (messageRef.exists) {
-        const message = messageRef.data() as Message;
-        contents.push({
-          role: message.role,
-          parts: [{ text: message.content }],
-        });
-      }
-    });
+    if (conversation.summarizedMessageId) {
+      const summarizedMessageDoc = await messagesRef
+        .doc(conversation.summarizedMessageId)
+        .get();
 
-    contents.reverse();
+      messagesInOrderDoc = await messagesRef
+        .orderBy('timestamp', 'asc')
+        .orderBy(admin.firestore.FieldPath.documentId())
+        .startAt(summarizedMessageDoc)
+        .get();
+
+      const previousMessagesInOrderRef = await messagesRef
+        .orderBy('timestamp', 'desc')
+        .orderBy(admin.firestore.FieldPath.documentId())
+        .startAfter(summarizedMessageDoc)
+        .limit(11 - messagesInOrderDoc.size)
+        .get();
+
+      contents.push(...getContentsArray(messagesInOrderDoc));
+      contents.push(...getContentsArray(previousMessagesInOrderRef).reverse());
+    } else {
+      messagesInOrderDoc = await messagesRef.orderBy('timestamp', 'asc').get();
+
+      contents.push(...getContentsArray(messagesInOrderDoc));
+    }
 
     contents.push({ role: 'user', parts: [{ text: prompt }] });
 
@@ -108,12 +144,26 @@ export const callAi = onCall<AiRequest>(
       globalSettings?.defaultGeminiModel ??
       'gemini-2.0-flash-lite';
 
+    const newUserMessageRef = messagesRef.doc();
+
+    batch.set(newUserMessageRef, {
+      role: 'user',
+      content: prompt,
+      timestamp: new Date(),
+      tokenCount: null,
+    } as Message);
+
     const response = await ai.models.generateContent({
       model,
       contents,
       config: {
         ...chatConfig,
-        systemInstruction: conversation?.chatSettings?.systemInstruction ?? '',
+        systemInstruction: conversation?.chatSettings?.systemInstruction
+          ? {
+              role: 'system',
+              text: conversation?.chatSettings?.systemInstruction,
+            }
+          : undefined,
         temperature:
           conversation?.chatSettings?.temperature ??
           globalSettings?.temperature ??
@@ -125,20 +175,15 @@ export const callAi = onCall<AiRequest>(
       throw new HttpsError('internal', 'Something went wrong.');
     }
 
-    const totalTokenCount = response.usageMetadata?.totalTokenCount ?? 0;
     const inputTokenCount = response.usageMetadata?.promptTokenCount ?? 0;
     const outputTokenCount = response.usageMetadata?.candidatesTokenCount ?? 0;
+    const totalTokenCount = response.usageMetadata?.totalTokenCount ?? 0;
 
-    const newUserMessageRef = messagesRef.doc();
-
-    batch.set(newUserMessageRef, {
-      role: 'user',
-      content: prompt,
-      timestamp: new Date(),
+    batch.update(newUserMessageRef, {
       tokenCount: inputTokenCount,
-    } as Message);
+    });
 
-    const tokenCountForConversation =
+    let tokenCountForConversation =
       (conversation.tokenCount ?? 0) + totalTokenCount;
 
     batch.update(conversationRef, {
@@ -170,6 +215,88 @@ export const callAi = onCall<AiRequest>(
         response.promptFeedback.blockReasonMessage ??
           'AI refused to generate a response.',
       );
+    }
+
+    if (totalTokenCount >= 15000) {
+      const summarizationPrompt =
+        'Based on the conversation above, provide a concise summary that captures the essence for future reference.';
+
+      const contentsToSummarize: Content[] = [
+        ...(messagesInOrderDoc.size > 0
+          ? getContentsArray(messagesInOrderDoc)
+          : []),
+        { role: 'user', parts: [{ text: prompt }] },
+        { role: 'model', parts: [{ text: response.text }] },
+        {
+          role: 'user',
+          parts: [
+            {
+              text: summarizationPrompt,
+            },
+          ],
+        },
+      ];
+
+      const batch = db.batch();
+
+      const maxOutputTokens = 2000;
+
+      const instructions = [
+        `You are an AI tasked with generating concise, factual summaries of chat conversations for long-term memory. Extract all key information: user's primary goal, decisions made, critical facts exchanged, any unresolved issues, and the current status of the conversation. The summary should be readable by another AI for future context. Do NOT include conversational filler, greetings, or pleasantries. Keep it under ${maxOutputTokens} tokens.`,
+      ];
+
+      if (conversation?.chatSettings?.systemInstruction) {
+        instructions.push(
+          `Original system instruction used in the chats you are to summarize: "${conversation?.chatSettings?.systemInstruction}"`,
+        );
+      }
+
+      const newSystemMessageRef = messagesRef.doc();
+      batch.set(newSystemMessageRef, {
+        role: 'system',
+        content: summarizationPrompt,
+        timestamp: new Date(),
+        tokenCount: null,
+      } as Message);
+
+      const summaryResponse = await ai.models.generateContent({
+        model: 'gemini-2.5-pro',
+        contents: contentsToSummarize,
+        config: {
+          ...chatConfig,
+          temperature: 0.3,
+          systemInstruction: instructions,
+          maxOutputTokens,
+        },
+      });
+
+      const totalTokenCount =
+        summaryResponse.usageMetadata?.totalTokenCount ?? 0;
+
+      const totalTokenCountWithSummary =
+        tokenCountForConversation + totalTokenCount;
+
+      tokenCountForConversation = totalTokenCountWithSummary;
+
+      batch.update(newSystemMessageRef, {
+        tokenCount: summaryResponse.usageMetadata?.promptTokenCount ?? 0,
+      });
+
+      const newModelSummarizedMessageRef = messagesRef.doc();
+      batch.set(newModelSummarizedMessageRef, {
+        role: 'model',
+        content: summaryResponse.text,
+        timestamp: new Date(),
+        tokenCount: totalTokenCount,
+      } as Message);
+
+      batch.update(conversationRef, {
+        summarizedMessageId: newModelSummarizedMessageRef.id,
+        lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+        tokenCount: totalTokenCountWithSummary,
+      });
+
+      await batch.commit();
     }
 
     return {

@@ -22,7 +22,8 @@ export type Conversation = {
   lastUpdated: Date;
   title: string;
   isDeleted: boolean;
-  chatSettings?: ChatSettings;
+  summarizedMessageId: string | null;
+  chatSettings: ChatSettings | null;
   tokenCount: number | null;
 };
 

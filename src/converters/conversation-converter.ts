@@ -34,6 +34,7 @@ export const conversationConverter = converter<Conversation>({
         model: (conversation.chatSettings as ChatSettings)?.model ?? null,
       },
       tokenCount: conversation.tokenCount ?? null,
+      summarizedMessageId: conversation.summarizedMessageId ?? null,
       createdAt:
         conversation.createdAt instanceof Date
           ? Timestamp.fromDate(conversation.createdAt)
@@ -49,6 +50,7 @@ export const conversationConverter = converter<Conversation>({
       id,
       title: data.title,
       isDeleted: data.isDeleted,
+      summarizedMessageId: data.summarizedMessageId ?? null,
       chatSettings: {
         systemInstruction: data.chatSettings?.systemInstruction ?? null,
         temperature: data.chatSettings?.temperature ?? null,
