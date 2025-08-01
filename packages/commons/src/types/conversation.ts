@@ -14,6 +14,7 @@ export type Message = {
   content: string;
   timestamp: Date;
   tokenCount: number | null;
+  isSummary: boolean | null;
 };
 
 export type Conversation = {

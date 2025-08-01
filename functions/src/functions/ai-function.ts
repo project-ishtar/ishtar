@@ -151,6 +151,7 @@ export const callAi = onCall<AiRequest>(
       content: prompt,
       timestamp: new Date(),
       tokenCount: null,
+      isSummary: false,
     } as Message);
 
     const response = await ai.models.generateContent({
@@ -183,7 +184,7 @@ export const callAi = onCall<AiRequest>(
       tokenCount: inputTokenCount,
     });
 
-    let tokenCountForConversation =
+    const tokenCountForConversation =
       (conversation.tokenCount ?? 0) + totalTokenCount;
 
     batch.update(conversationRef, {
@@ -198,6 +199,7 @@ export const callAi = onCall<AiRequest>(
       content: response.text,
       timestamp: new Date(),
       tokenCount: outputTokenCount,
+      isSummary: false,
     } as Message);
 
     await batch.commit();
@@ -217,93 +219,137 @@ export const callAi = onCall<AiRequest>(
       );
     }
 
+    let summaryToken = 0;
+
     if (totalTokenCount >= 15000) {
-      const summarizationPrompt =
-        'Based on the conversation above, provide a concise summary that captures the essence for future reference.';
-
-      const contentsToSummarize: Content[] = [
-        ...(messagesInOrderDoc.size > 0
-          ? getContentsArray(messagesInOrderDoc)
-          : []),
-        { role: 'user', parts: [{ text: prompt }] },
-        { role: 'model', parts: [{ text: response.text }] },
-        {
-          role: 'user',
-          parts: [
-            {
-              text: summarizationPrompt,
-            },
-          ],
-        },
-      ];
-
-      const batch = db.batch();
-
-      const maxOutputTokens = 2000;
-
-      const instructions = [
-        `You are an AI tasked with generating concise, factual summaries of chat conversations for long-term memory. Extract all key information: user's primary goal, decisions made, critical facts exchanged, any unresolved issues, and the current status of the conversation. The summary should be readable by another AI for future context. Do NOT include conversational filler, greetings, or pleasantries. Keep it under ${maxOutputTokens} tokens.`,
-      ];
-
-      if (conversation?.chatSettings?.systemInstruction) {
-        instructions.push(
-          `Original system instruction used in the chats you are to summarize: "${conversation?.chatSettings?.systemInstruction}"`,
-        );
+      try {
+        summaryToken = await generateSummary({
+          messagesInOrderDoc,
+          messagesRef,
+          conversationRef,
+          totalConversationToken: tokenCountForConversation,
+          systemInstruction: conversation?.chatSettings?.systemInstruction,
+          userPrompt: prompt,
+          responseFromModel: response.text,
+        });
+      } catch (error) {
+        console.warn('Summarization failed.');
+        console.warn(error);
       }
-
-      const newSystemMessageRef = messagesRef.doc();
-      batch.set(newSystemMessageRef, {
-        role: 'system',
-        content: summarizationPrompt,
-        timestamp: new Date(),
-        tokenCount: null,
-      } as Message);
-
-      const summaryResponse = await ai.models.generateContent({
-        model: 'gemini-2.5-pro',
-        contents: contentsToSummarize,
-        config: {
-          ...chatConfig,
-          temperature: 0.3,
-          systemInstruction: instructions,
-          maxOutputTokens,
-        },
-      });
-
-      const totalTokenCount =
-        summaryResponse.usageMetadata?.totalTokenCount ?? 0;
-
-      const totalTokenCountWithSummary =
-        tokenCountForConversation + totalTokenCount;
-
-      tokenCountForConversation = totalTokenCountWithSummary;
-
-      batch.update(newSystemMessageRef, {
-        tokenCount: summaryResponse.usageMetadata?.promptTokenCount ?? 0,
-      });
-
-      const newModelSummarizedMessageRef = messagesRef.doc();
-      batch.set(newModelSummarizedMessageRef, {
-        role: 'model',
-        content: summaryResponse.text,
-        timestamp: new Date(),
-        tokenCount: totalTokenCount,
-      } as Message);
-
-      batch.update(conversationRef, {
-        summarizedMessageId: newModelSummarizedMessageRef.id,
-        lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
-        tokenCount: totalTokenCountWithSummary,
-      });
-
-      await batch.commit();
     }
 
     return {
       id: newModelMessageRef.id,
       response: response.text,
-      tokenCount: tokenCountForConversation,
+      tokenCount: tokenCountForConversation + summaryToken,
       conversationId,
     };
   },
 );
+
+async function generateSummary({
+  messagesInOrderDoc,
+  responseFromModel,
+  userPrompt,
+  systemInstruction,
+  messagesRef,
+  totalConversationToken,
+  conversationRef,
+}: {
+  messagesInOrderDoc: admin.firestore.QuerySnapshot<
+    Message,
+    admin.firestore.DocumentData
+  >;
+  messagesRef: admin.firestore.CollectionReference<
+    Message,
+    admin.firestore.DocumentData
+  >;
+  conversationRef: admin.firestore.DocumentReference<
+    admin.firestore.DocumentData,
+    admin.firestore.DocumentData
+  >;
+  userPrompt: string;
+  responseFromModel: string;
+  systemInstruction?: string | null;
+  totalConversationToken: number;
+}) {
+  const summarizationPrompt =
+    'Based on the conversation above, provide a concise summary that captures the essence for future reference.';
+
+  const contentsToSummarize: Content[] = [
+    ...(messagesInOrderDoc.size > 0
+      ? getContentsArray(messagesInOrderDoc)
+      : []),
+    { role: 'user', parts: [{ text: userPrompt }] },
+    { role: 'model', parts: [{ text: responseFromModel }] },
+    {
+      role: 'user',
+      parts: [
+        {
+          text: summarizationPrompt,
+        },
+      ],
+    },
+  ];
+
+  const batch = db.batch();
+
+  const maxOutputTokens = 2000;
+
+  const instructions = [
+    `You are an AI tasked with generating concise, factual summaries of chat conversations for long-term memory. Extract all key information: user's primary goal, decisions made, critical facts exchanged, any unresolved issues, and the current status of the conversation. The summary should be readable by another AI for future context. Do NOT include conversational filler, greetings, or pleasantries. Keep it under ${maxOutputTokens} tokens.`,
+  ];
+
+  if (systemInstruction) {
+    instructions.push(
+      `Original system instruction used in the chats you are to summarize: "${systemInstruction}"`,
+    );
+  }
+
+  const newSystemMessageRef = messagesRef.doc();
+  batch.set(newSystemMessageRef, {
+    role: 'system',
+    content: summarizationPrompt,
+    timestamp: new Date(),
+    tokenCount: null,
+    isSummary: false,
+  } as Message);
+
+  const summaryResponse = await ai.models.generateContent({
+    model: 'gemini-2.5-pro',
+    contents: contentsToSummarize,
+    config: {
+      ...chatConfig,
+      temperature: 0.3,
+      systemInstruction: instructions,
+      maxOutputTokens,
+    },
+  });
+
+  const totalTokenCount = summaryResponse.usageMetadata?.totalTokenCount ?? 0;
+
+  const totalTokenCountWithSummary = totalConversationToken + totalTokenCount;
+
+  batch.update(newSystemMessageRef, {
+    tokenCount: summaryResponse.usageMetadata?.promptTokenCount ?? 0,
+  });
+
+  const newModelSummarizedMessageRef = messagesRef.doc();
+  batch.set(newModelSummarizedMessageRef, {
+    role: 'model',
+    content: summaryResponse.text,
+    timestamp: new Date(),
+    tokenCount: summaryResponse.usageMetadata?.candidatesTokenCount ?? 0,
+    isSummary: true,
+  } as Message);
+
+  batch.update(conversationRef, {
+    summarizedMessageId: newModelSummarizedMessageRef.id,
+    lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+    tokenCount: totalTokenCountWithSummary,
+  });
+
+  await batch.commit();
+
+  return totalTokenCount;
+}
