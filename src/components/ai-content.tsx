@@ -24,6 +24,8 @@ export const AiContent = (): JSX.Element => {
   const params = useParams();
   const navigate = useNavigate();
 
+  const shouldSubmitButtonBeDisabled = !prompt || isPromptSubmitted;
+
   const onPromptChange = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
       setPrompt(event.target.value);
@@ -61,11 +63,15 @@ export const AiContent = (): JSX.Element => {
 
   const onInputKeyDown = useCallback(
     (event: React.KeyboardEvent) => {
-      if (event.metaKey && event.key === 'Enter') {
+      if (
+        event.metaKey &&
+        event.key === 'Enter' &&
+        !shouldSubmitButtonBeDisabled
+      ) {
         onSubmit();
       }
     },
-    [onSubmit],
+    [onSubmit, shouldSubmitButtonBeDisabled],
   );
 
   return (
@@ -129,7 +135,7 @@ export const AiContent = (): JSX.Element => {
               onClick={onSubmit}
               variant="outlined"
               color="success"
-              disabled={!prompt || isPromptSubmitted}
+              disabled={shouldSubmitButtonBeDisabled}
               loading={isPromptSubmitted}
               loadingIndicator={<CircularProgress size={20} color="info" />}
             >

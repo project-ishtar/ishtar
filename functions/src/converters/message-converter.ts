@@ -18,7 +18,7 @@ export const chatMessageConverter = {
   fromFirestore: (snapshot: QueryDocumentSnapshot<Message>): Message => {
     const data = snapshot.data();
     return {
-      id: data.id,
+      id: snapshot.id,
       role: data.role,
       content: data.content,
       tokenCount: data.tokenCount,
