@@ -82,8 +82,7 @@ export const callAi = onCall<AiRequest>(
       .withConverter(chatMessageConverter);
 
     const messagesInOrderRef = await messagesRef
-      .orderBy('timestamp', 'asc')
-      .limit(25)
+      .orderBy('timestamp', 'desc')
       .get();
 
     const contents: Content[] = [];
@@ -97,6 +96,8 @@ export const callAi = onCall<AiRequest>(
         });
       }
     });
+
+    contents.reverse();
 
     contents.push({ role: 'user', parts: [{ text: prompt }] });
 

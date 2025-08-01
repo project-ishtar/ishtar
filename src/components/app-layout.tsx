@@ -43,10 +43,10 @@ type AppLayoutProps = {
 };
 
 export const AppLayout = ({ children, onSettingsClick }: AppLayoutProps) => {
-  const [isDrawerOpen, setDrawerOpen] = useState(false);
-
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+
+  const [isDrawerOpen, setDrawerOpen] = useState(!isMobile);
 
   const colorScheme = useColorScheme();
 
