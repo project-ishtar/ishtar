@@ -2,7 +2,6 @@
   "name": "@ishtar/commons",
   "version": "1.0.0",
   "exports": {
-    "./types": "./src/types/index.ts",
-    "./constants": "./src/constants/index.ts"
+    "./types": "./src/types/index.ts"
   }
 }

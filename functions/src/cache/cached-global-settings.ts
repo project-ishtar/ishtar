@@ -1,8 +1,4 @@
 import { GlobalSettings } from '@ishtar/commons/types';
-import {
-  GLOBAL_SETTINGS_CACHE_DURATION_MS,
-  GLOBAL_SETTINGS_DOC_PATH,
-} from '@ishtar/commons/constants';
 import { db } from '../index';
 
 let cachedGlobalSettings: GlobalSettings | null = null;
@@ -13,17 +9,14 @@ let lastFetchTime: number = 0;
 export async function getGlobalSettings(): Promise<GlobalSettings> {
   const now = Date.now();
 
-  if (
-    cachedGlobalSettings &&
-    now - lastFetchTime < GLOBAL_SETTINGS_CACHE_DURATION_MS
-  ) {
+  if (cachedGlobalSettings && now - lastFetchTime < 10 * 60 * 100) {
     return cachedGlobalSettings;
   }
 
   if (cachedGlobalSettingsPromise) return cachedGlobalSettingsPromise;
 
   cachedGlobalSettingsPromise = db
-    .doc(GLOBAL_SETTINGS_DOC_PATH)
+    .doc('_settings/global')
     .get()
     .then((settingsDoc) => {
       const settings = (settingsDoc.data() ?? {}) as GlobalSettings;

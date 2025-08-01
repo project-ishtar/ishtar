@@ -1,10 +1,6 @@
 import type { GlobalSettings } from '@ishtar/commons/types';
 import { firebaseApp } from '../firebase.ts';
 import { doc, getDoc } from 'firebase/firestore';
-import {
-  GLOBAL_SETTINGS_CACHE_DURATION_MS,
-  GLOBAL_SETTINGS_DOC_PATH,
-} from '@ishtar/commons/constants';
 
 let cachedGlobalSettings: GlobalSettings | undefined = undefined;
 let cachedGlobalSettingsPromise: Promise<GlobalSettings> | null = null;
@@ -14,19 +10,13 @@ let lastFetchTime: number = 0;
 export async function getGlobalSettings(): Promise<GlobalSettings> {
   const now = Date.now();
 
-  if (
-    cachedGlobalSettings &&
-    now - lastFetchTime < GLOBAL_SETTINGS_CACHE_DURATION_MS
-  ) {
+  if (cachedGlobalSettings && now - lastFetchTime < 10 * 60 * 100) {
     return cachedGlobalSettings;
   }
 
   if (cachedGlobalSettingsPromise) return cachedGlobalSettingsPromise;
 
-  const globalSettingsDocRef = doc(
-    firebaseApp.firestore,
-    GLOBAL_SETTINGS_DOC_PATH,
-  );
+  const globalSettingsDocRef = doc(firebaseApp.firestore, '_settings/global');
 
   cachedGlobalSettingsPromise = getDoc(globalSettingsDocRef)
     .then((settingsDoc) => {
