@@ -13,12 +13,13 @@ import Box from '@mui/material/Box';
 import { Container, useMediaQuery, useTheme } from '@mui/material';
 import CircularProgress from '@mui/material/CircularProgress';
 import LoadingButton from '@mui/lab/LoadingButton';
-import type { AiResponse } from '@ishtar/commons/types';
+import type { AiResponse, Conversation } from '@ishtar/commons/types';
 import { useParams, useNavigate } from 'react-router';
 import { firebaseApp } from '../firebase.ts';
 import { doc, getDoc } from 'firebase/firestore';
 import { conversationConverter } from '../converters/conversation-converter.ts';
 import type { RouteParams } from '../routes/route-params.ts';
+import { useConversations } from '../data/use-conversations.ts';
 
 export const AiContent = (): JSX.Element => {
   const [prompt, setPrompt] = useState<string>();
@@ -33,6 +34,8 @@ export const AiContent = (): JSX.Element => {
 
   const params = useParams<RouteParams>();
   const navigate = useNavigate();
+
+  const { addConversation } = useConversations();
 
   const shouldSubmitButtonBeDisabled = !prompt || isPromptSubmitted;
 
@@ -68,7 +71,9 @@ export const AiContent = (): JSX.Element => {
   );
 
   const onSubmit = useCallback(async () => {
-    if (prompt) {
+    const currentUserId = firebaseApp.auth?.currentUser?.uid;
+
+    if (prompt && currentUserId) {
       setIsPromptSubmitted(true);
 
       const response = await getAiResponse({
@@ -77,6 +82,21 @@ export const AiContent = (): JSX.Element => {
       });
 
       if (response) {
+        if (params.conversationId !== response.conversationId) {
+          const conversationRef = doc(
+            firebaseApp.firestore,
+            'users',
+            currentUserId,
+            'conversations',
+            response.conversationId,
+          ).withConverter(conversationConverter);
+
+          const conversationSnapshot = await getDoc(conversationRef);
+          const conversation = conversationSnapshot.data() as Conversation;
+
+          addConversation(conversation);
+        }
+
         setResponse({
           id: response.id,
           response: response.response,
@@ -93,7 +113,7 @@ export const AiContent = (): JSX.Element => {
     }
 
     setIsPromptSubmitted(false);
-  }, [navigate, params.conversationId, prompt]);
+  }, [addConversation, navigate, params.conversationId, prompt]);
 
   const onInputKeyDown = useCallback(
     (event: React.KeyboardEvent) => {

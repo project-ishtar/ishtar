@@ -25,9 +25,9 @@ import { firebaseApp } from '../firebase';
 import { doc, collection, addDoc, updateDoc, getDoc } from 'firebase/firestore';
 import { conversationConverter } from '../converters/conversation-converter.ts';
 import { globalSettings } from '../data/global-settings.ts';
-import { useAtom } from 'jotai';
-import { conversationsAtom } from '../data/atoms.ts';
 import type { RouteParams } from '../routes/route-params.ts';
+import { useConversations } from '../data/use-conversations.ts';
+import { useCurrentConversation } from '../data/use-current-conversation.ts';
 
 type ChatSettingsProps = {
   isOpen: boolean;
@@ -46,17 +46,14 @@ export const ChatSettings = ({ isOpen, onClose }: ChatSettingsProps) => {
     globalSettings.defaultGeminiModel,
   );
 
-  const [conversations, setConversations] = useAtom(conversationsAtom);
+  const conversation = useCurrentConversation();
+  const { addConversation, updateConversation } = useConversations();
 
   useEffect(() => {
     const currentUserId = firebaseApp.auth?.currentUser?.uid;
     const conversationId = params.conversationId;
 
     if (conversationId && currentUserId) {
-      const conversation = conversations.find(
-        (conversation) => conversation.id == conversationId,
-      );
-
       if (conversation) {
         setChatTitle(conversation.title);
         setSystemInstruction(
@@ -77,7 +74,7 @@ export const ChatSettings = ({ isOpen, onClose }: ChatSettingsProps) => {
     }
 
     setLoading(false);
-  }, [conversations, params.conversationId]);
+  }, [conversation, params.conversationId]);
 
   const onSave = useCallback(async () => {
     const currentUserId = firebaseApp.auth?.currentUser?.uid;
@@ -111,7 +108,7 @@ export const ChatSettings = ({ isOpen, onClose }: ChatSettingsProps) => {
         const newDocSnapshot = await getDoc(newDocRef);
         const fetchedNewConversation = newDocSnapshot.data() as Conversation;
 
-        setConversations([...conversations, fetchedNewConversation]);
+        addConversation(fetchedNewConversation);
 
         navigate(`/app/${newDocRef.id}`);
       } else {
@@ -136,42 +133,21 @@ export const ChatSettings = ({ isOpen, onClose }: ChatSettingsProps) => {
           convoToUpdate,
         );
 
-        const conversation = conversations.find(
-          (conversation) => conversation.id == conversationId,
-        );
-        const newConvo: Conversation = {
-          ...conversation,
-          ...convoToUpdate,
-        } as Conversation;
-
-        const newConvos = conversations.reduce<Conversation[]>(
-          (acc, conversation) => {
-            if (conversation.id === conversationId) {
-              acc.push(newConvo);
-            } else {
-              acc.push(conversation);
-            }
-
-            return [...acc];
-          },
-          [],
-        );
-
-        setConversations(newConvos);
+        updateConversation(conversationId, convoToUpdate);
       }
 
       onClose();
     }
   }, [
+    addConversation,
     chatTitle,
-    conversations,
     model,
     navigate,
     onClose,
     params.conversationId,
-    setConversations,
     systemInstruction,
     temperature,
+    updateConversation,
   ]);
 
   if (isLoading) return null;

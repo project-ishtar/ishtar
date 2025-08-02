@@ -1,15 +1,9 @@
 import { AppLayout } from './app-layout.tsx';
 import { AiContent } from './ai-content.tsx';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ChatSettings } from './chat-settings.tsx';
 import type { Conversation } from '@ishtar/commons/types';
-import {
-  collection,
-  onSnapshot,
-  query,
-  orderBy,
-  type Unsubscribe,
-} from 'firebase/firestore';
+import { collection, query, orderBy, getDocs, where } from 'firebase/firestore';
 import { firebaseApp } from '../firebase.ts';
 import { conversationConverter } from '../converters/conversation-converter.ts';
 import CircularProgress from '@mui/material/CircularProgress';
@@ -27,10 +21,8 @@ export const App = () => {
   const setConversations = useSetAtom(conversationsAtom);
   const isGlobalSettingsLoaded = useAtomValue(isGlobalSettingsLoadedAtom);
 
-  useEffect(() => {
+  const initConversations = useCallback(async () => {
     const currentUserId = firebaseApp.auth.currentUser?.uid;
-
-    let unsubscribe: Unsubscribe;
 
     if (currentUserId && isLoading) {
       const conversationsRef = query(
@@ -40,28 +32,29 @@ export const App = () => {
           currentUserId,
           'conversations',
         ).withConverter(conversationConverter),
+        where('isDeleted', '!=', true),
         orderBy('createdAt', 'asc'),
       );
 
-      unsubscribe = onSnapshot(conversationsRef, (conversationDocs) => {
-        const conversationsArr: Conversation[] = [];
+      const conversationDocs = await getDocs(conversationsRef);
 
-        conversationDocs.forEach((conversationDoc) => {
-          conversationsArr.push(conversationDoc.data() as Conversation);
-        });
+      const conversationsArr: Conversation[] = [];
 
-        setConversations(conversationsArr);
-
-        if (isLoading) {
-          setLoading(false);
-        }
+      conversationDocs.forEach((conversationDoc) => {
+        conversationsArr.push(conversationDoc.data() as Conversation);
       });
-    }
 
-    return () => {
-      unsubscribe?.();
-    };
+      setConversations(conversationsArr);
+
+      if (isLoading) {
+        setLoading(false);
+      }
+    }
   }, [isLoading, setConversations]);
+
+  useEffect(() => {
+    initConversations();
+  }, [initConversations]);
 
   if (isLoading) {
     return (
