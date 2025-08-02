@@ -9,9 +9,9 @@ import {
   Message,
 } from '@ishtar/commons/types';
 import { ai, db } from '../index';
-import { getGlobalSettings } from '../cache/cached-global-settings';
 import admin from 'firebase-admin';
 import { chatMessageConverter } from '../converters/message-converter';
+import { globalSettings } from '../cache/global-settings';
 
 const functionOptions = {
   secrets: ['GEMINI_API_KEY'],
@@ -51,8 +51,6 @@ export const callAi = onCall<AiRequest>(
         'You must be authenticated to call this function.',
       );
     }
-
-    const globalSettings = await getGlobalSettings();
 
     const { prompt, conversationId: convoId } = request.data;
 

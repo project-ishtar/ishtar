@@ -17,7 +17,8 @@ import {
   conversationsAtom,
   isGlobalSettingsLoadedAtom,
 } from '../data/atoms.ts';
-import { useNavigate } from 'react-router';
+import { useNavigate, useParams } from 'react-router';
+import type { RouteParams } from '../routes/route-params.ts';
 
 const drawerWidth = 240;
 
@@ -60,6 +61,7 @@ export const AppLayout = ({ children, onSettingsClick }: AppLayoutProps) => {
   const isGlobalSettingsLoaded = useAtomValue(isGlobalSettingsLoadedAtom);
 
   const navigate = useNavigate();
+  const params = useParams<RouteParams>();
 
   useEffect(() => {
     setDrawerOpen(!isMobile);
@@ -78,11 +80,11 @@ export const AppLayout = ({ children, onSettingsClick }: AppLayoutProps) => {
           </ListItemButton>
         </ListItem>
         {conversations.map((conversation) => (
-          <ListItem
-            key={conversation.id}
-            onClick={() => navigate(`/app/${conversation.id}`)}
-          >
-            <ListItemButton>
+          <ListItem key={conversation.id}>
+            <ListItemButton
+              onClick={() => navigate(`/app/${conversation.id}`)}
+              selected={conversation.id === params.conversationId}
+            >
               <ListItemText primary={conversation.title} />
             </ListItemButton>
           </ListItem>

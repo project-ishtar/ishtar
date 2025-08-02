@@ -18,6 +18,7 @@ import { useParams, useNavigate } from 'react-router';
 import { firebaseApp } from '../firebase.ts';
 import { doc, getDoc } from 'firebase/firestore';
 import { conversationConverter } from '../converters/conversation-converter.ts';
+import type { RouteParams } from '../routes/route-params.ts';
 
 export const AiContent = (): JSX.Element => {
   const [prompt, setPrompt] = useState<string>();
@@ -30,7 +31,7 @@ export const AiContent = (): JSX.Element => {
   const theme = useTheme();
   const isSmallBreakpoint = useMediaQuery(theme.breakpoints.down('md'));
 
-  const params = useParams<{ conversationId?: string }>();
+  const params = useParams<RouteParams>();
   const navigate = useNavigate();
 
   const shouldSubmitButtonBeDisabled = !prompt || isPromptSubmitted;
