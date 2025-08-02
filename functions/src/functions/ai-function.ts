@@ -77,7 +77,8 @@ export const callAi = onCall<AiRequest>(
           systemInstruction: null,
         },
         summarizedMessageId: null,
-        tokenCount: 0,
+        inputTokenCount: 0,
+        outputTokenCount: 0,
       };
 
       conversationId = newConversationRef.id;
@@ -194,7 +195,6 @@ export const callAi = onCall<AiRequest>(
 
     const inputTokenCount = response.usageMetadata?.promptTokenCount ?? 0;
     const outputTokenCount = response.usageMetadata?.candidatesTokenCount ?? 0;
-    const totalTokenCount = response.usageMetadata?.totalTokenCount ?? 0;
 
     console.log(`Usage metadata: ${JSON.stringify(response.usageMetadata)}`);
 
@@ -202,12 +202,18 @@ export const callAi = onCall<AiRequest>(
       tokenCount: inputTokenCount,
     });
 
-    const tokenCountForConversation =
-      (conversation.tokenCount ?? 0) + totalTokenCount;
+    let totalInputTokenCount =
+      (conversation.inputTokenCount ?? 0) + inputTokenCount;
+    let totalOutputTokenCount =
+      (conversation.outputTokenCount ?? 0) + outputTokenCount;
+
+    let tokenCountForConversation =
+      totalInputTokenCount + totalOutputTokenCount;
 
     batch.update(conversationRef, {
       lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
-      tokenCount: tokenCountForConversation,
+      inputTokenCount: totalInputTokenCount,
+      outputTokenCount: totalOutputTokenCount,
     });
 
     const newModelMessageRef = messagesRef.doc();
@@ -237,18 +243,28 @@ export const callAi = onCall<AiRequest>(
       );
     }
 
-    let summaryToken = 0;
-
-    if (totalTokenCount >= 10000 || contents.length + 2 >= 50) {
+    if (totalInputTokenCount >= 10000 || contents.length + 2 >= 50) {
       try {
-        summaryToken = await generateSummary({
-          messagesInOrderDoc,
-          messagesRef,
-          conversationRef,
-          totalConversationToken: tokenCountForConversation,
-          systemInstruction: conversation?.chatSettings?.systemInstruction,
-          userPrompt: prompt,
-          responseFromModel: response.text,
+        const { summarizedMessageId, inputTokenCount, outputTokenCount } =
+          await generateSummary({
+            messagesInOrderDoc,
+            messagesRef,
+            systemInstruction: conversation?.chatSettings?.systemInstruction,
+            userPrompt: prompt,
+            responseFromModel: response.text,
+          });
+
+        totalInputTokenCount += inputTokenCount;
+        totalOutputTokenCount += outputTokenCount;
+
+        tokenCountForConversation =
+          totalInputTokenCount + totalOutputTokenCount;
+
+        await conversationRef.update({
+          summarizedMessageId: summarizedMessageId,
+          lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+          inputTokenCount: totalInputTokenCount,
+          outputTokenCount: totalOutputTokenCount,
         });
       } catch (error) {
         console.warn('Summarization failed.');
@@ -259,7 +275,7 @@ export const callAi = onCall<AiRequest>(
     return {
       id: newModelMessageRef.id,
       response: response.text,
-      tokenCount: tokenCountForConversation + summaryToken,
+      tokenCount: tokenCountForConversation,
       conversationId,
     };
   },
@@ -271,8 +287,6 @@ async function generateSummary({
   userPrompt,
   systemInstruction,
   messagesRef,
-  totalConversationToken,
-  conversationRef,
 }: {
   messagesInOrderDoc: admin.firestore.QuerySnapshot<
     Message,
@@ -282,15 +296,14 @@ async function generateSummary({
     Message,
     admin.firestore.DocumentData
   >;
-  conversationRef: admin.firestore.DocumentReference<
-    admin.firestore.DocumentData,
-    admin.firestore.DocumentData
-  >;
   userPrompt: string;
   responseFromModel: string;
   systemInstruction?: string | null;
-  totalConversationToken: number;
-}) {
+}): Promise<{
+  summarizedMessageId: string;
+  inputTokenCount: number;
+  outputTokenCount: number;
+}> {
   const summarizationPrompt =
     'Based on the conversation above, provide a concise summary that captures the essence for future reference.';
 
@@ -341,12 +354,12 @@ async function generateSummary({
     },
   });
 
-  const totalTokenCount = summaryResponse.usageMetadata?.totalTokenCount ?? 0;
-
-  const totalTokenCountWithSummary = totalConversationToken + totalTokenCount;
+  const inputTokenCount = summaryResponse.usageMetadata?.promptTokenCount ?? 0;
+  const outputTokenCount =
+    summaryResponse.usageMetadata?.candidatesTokenCount ?? 0;
 
   batch.update(newSystemMessageRef, {
-    tokenCount: summaryResponse.usageMetadata?.promptTokenCount ?? 0,
+    tokenCount: inputTokenCount,
   });
 
   const newModelSummarizedMessageRef = messagesRef.doc();
@@ -354,17 +367,15 @@ async function generateSummary({
     role: 'model',
     content: summaryResponse.text,
     timestamp: new Date(),
-    tokenCount: summaryResponse.usageMetadata?.candidatesTokenCount ?? 0,
+    tokenCount: outputTokenCount,
     isSummary: true,
   } as Message);
 
-  batch.update(conversationRef, {
-    summarizedMessageId: newModelSummarizedMessageRef.id,
-    lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
-    tokenCount: totalTokenCountWithSummary,
-  });
-
   await batch.commit();
 
-  return totalTokenCount;
+  return {
+    summarizedMessageId: newModelSummarizedMessageRef.id,
+    inputTokenCount,
+    outputTokenCount,
+  };
 }

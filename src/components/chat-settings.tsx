@@ -93,7 +93,8 @@ export const ChatSettings = ({ isOpen, onClose }: ChatSettingsProps) => {
             model: model,
             systemInstruction: systemInstruction ?? null,
           },
-          tokenCount: 0,
+          inputTokenCount: 0,
+          outputTokenCount: 0,
         };
         const newDocRef = await addDoc(
           collection(

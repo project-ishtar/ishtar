@@ -33,7 +33,8 @@ export const conversationConverter = converter<Conversation>({
           (conversation.chatSettings as ChatSettings)?.temperature ?? null,
         model: (conversation.chatSettings as ChatSettings)?.model ?? null,
       },
-      tokenCount: conversation.tokenCount ?? null,
+      inputTokenCount: conversation.inputTokenCount ?? null,
+      outputTokenCount: conversation.outputTokenCount ?? null,
       summarizedMessageId: conversation.summarizedMessageId ?? null,
       createdAt:
         conversation.createdAt instanceof Date
@@ -56,7 +57,8 @@ export const conversationConverter = converter<Conversation>({
         temperature: data.chatSettings?.temperature ?? null,
         model: data.chatSettings?.model ?? null,
       },
-      tokenCount: data.tokenCount,
+      inputTokenCount: data.inputTokenCount,
+      outputTokenCount: data.outputTokenCount,
       createdAt: (data.createdAt as unknown as Timestamp).toDate(),
       lastUpdated: (data.lastUpdated as unknown as Timestamp).toDate(),
     };
