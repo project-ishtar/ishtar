@@ -22,9 +22,12 @@ import type {
 } from '@ishtar/commons/types';
 import { useNavigate, useParams } from 'react-router';
 import { firebaseApp } from '../firebase';
-import { getDoc, doc, collection, addDoc, updateDoc } from 'firebase/firestore';
-import { getGlobalSettings } from '../db/cached-global-settings.ts';
+import { doc, collection, addDoc, updateDoc, getDoc } from 'firebase/firestore';
 import { conversationConverter } from '../converters/conversation-converter.ts';
+import { globalSettings } from '../data/global-settings.ts';
+import type { RouteParams } from '../routes/route-params.ts';
+import { useConversations } from '../data/use-conversations.ts';
+import { useCurrentConversation } from '../data/use-current-conversation.ts';
 
 type ChatSettingsProps = {
   isOpen: boolean;
@@ -32,71 +35,46 @@ type ChatSettingsProps = {
 };
 
 export const ChatSettings = ({ isOpen, onClose }: ChatSettingsProps) => {
-  const params = useParams<{ conversationId?: string }>();
+  const params = useParams<RouteParams>();
   const navigate = useNavigate();
 
   const [isLoading, setLoading] = useState(true);
-
   const [chatTitle, setChatTitle] = useState('');
-
   const [systemInstruction, setSystemInstruction] = useState<string>();
+  const [temperature, setTemperature] = useState(globalSettings.temperature);
+  const [model, setModel] = useState<GeminiModel>(
+    globalSettings.defaultGeminiModel,
+  );
 
-  const [temperature, setTemperature] = useState(1);
+  const conversation = useCurrentConversation();
+  const { addConversation, updateConversation } = useConversations();
 
-  const [model, setModel] = useState<GeminiModel>();
-
-  const [supportedModels, setSupportedModels] = useState<GeminiModel[]>([
-    'gemini-2.0-flash-lite',
-  ]);
-
-  const setGeminiModels = useCallback(async () => {
-    const globalSettings = await getGlobalSettings();
-
-    if (globalSettings?.supportedGeminiModels) {
-      setSupportedModels(globalSettings.supportedGeminiModels);
-    }
-  }, []);
-
-  const initializeData = useCallback(async () => {
+  useEffect(() => {
     const currentUserId = firebaseApp.auth?.currentUser?.uid;
     const conversationId = params.conversationId;
 
     if (conversationId && currentUserId) {
-      const conversationDocRef = doc(
-        firebaseApp.firestore,
-        'users',
-        currentUserId,
-        'conversations',
-        conversationId,
-      ).withConverter(conversationConverter);
-
-      const conversationDocSnap = await getDoc(conversationDocRef);
-
-      if (conversationDocSnap.exists()) {
-        const conversation = conversationDocSnap.data() as Conversation;
-
-        setChatTitle(conversation?.title);
+      if (conversation) {
+        setChatTitle(conversation.title);
         setSystemInstruction(
-          conversation?.chatSettings?.systemInstruction ?? undefined,
+          conversation.chatSettings?.systemInstruction ?? '',
         );
-        setTemperature(conversation?.chatSettings?.temperature ?? 1);
-        setModel(conversation?.chatSettings?.model ?? 'gemini-2.0-flash-lite');
+        setTemperature(
+          conversation.chatSettings?.temperature ?? globalSettings.temperature,
+        );
+        setModel(
+          conversation?.chatSettings?.model ??
+            globalSettings.defaultGeminiModel,
+        );
       }
     } else {
-      const globalSettings = await getGlobalSettings();
-
       setChatTitle(`New Chat - ${Date.now()}`);
-      setTemperature(globalSettings.temperature ?? 1);
-      setModel(globalSettings?.defaultGeminiModel ?? 'gemini-2.0-flash-lite');
+      setTemperature(globalSettings.temperature);
+      setModel(globalSettings.defaultGeminiModel);
     }
 
     setLoading(false);
-  }, [params.conversationId]);
-
-  useEffect(() => {
-    setGeminiModels();
-    initializeData();
-  }, [initializeData, setGeminiModels]);
+  }, [conversation, params.conversationId]);
 
   const onSave = useCallback(async () => {
     const currentUserId = firebaseApp.auth?.currentUser?.uid;
@@ -112,12 +90,13 @@ export const ChatSettings = ({ isOpen, onClose }: ChatSettingsProps) => {
           summarizedMessageId: null,
           chatSettings: {
             temperature,
-            model: model ?? null,
+            model: model,
             systemInstruction: systemInstruction ?? null,
           },
-          tokenCount: 0,
+          inputTokenCount: 0,
+          outputTokenCount: 0,
         };
-        const newDoc = await addDoc(
+        const newDocRef = await addDoc(
           collection(
             firebaseApp.firestore,
             'users',
@@ -127,8 +106,23 @@ export const ChatSettings = ({ isOpen, onClose }: ChatSettingsProps) => {
           newConversation,
         );
 
-        navigate(`/app/${newDoc.id}`);
+        const newDocSnapshot = await getDoc(newDocRef);
+        const fetchedNewConversation = newDocSnapshot.data() as Conversation;
+
+        addConversation(fetchedNewConversation);
+
+        navigate(`/app/${newDocRef.id}`);
       } else {
+        const convoToUpdate: Partial<Conversation> = {
+          lastUpdated: new Date(),
+          title: chatTitle,
+          chatSettings: {
+            temperature,
+            model: model,
+            systemInstruction: systemInstruction ?? null,
+          },
+        };
+
         await updateDoc(
           doc(
             firebaseApp.firestore,
@@ -137,21 +131,16 @@ export const ChatSettings = ({ isOpen, onClose }: ChatSettingsProps) => {
             'conversations',
             conversationId,
           ).withConverter(conversationConverter),
-          {
-            lastUpdated: new Date(),
-            title: chatTitle,
-            chatSettings: {
-              temperature,
-              model: model ?? null,
-              systemInstruction: systemInstruction ?? null,
-            },
-          },
+          convoToUpdate,
         );
+
+        updateConversation(conversationId, convoToUpdate);
       }
 
       onClose();
     }
   }, [
+    addConversation,
     chatTitle,
     model,
     navigate,
@@ -159,6 +148,7 @@ export const ChatSettings = ({ isOpen, onClose }: ChatSettingsProps) => {
     params.conversationId,
     systemInstruction,
     temperature,
+    updateConversation,
   ]);
 
   if (isLoading) return null;
@@ -228,7 +218,7 @@ export const ChatSettings = ({ isOpen, onClose }: ChatSettingsProps) => {
                   setModel(event.target.value)
                 }
               >
-                {supportedModels.map((model) => (
+                {globalSettings.supportedGeminiModels.map((model) => (
                   <MenuItem key={model} value={model}>
                     {model}
                   </MenuItem>

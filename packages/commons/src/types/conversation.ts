@@ -25,7 +25,8 @@ export type Conversation = {
   isDeleted: boolean;
   summarizedMessageId: string | null;
   chatSettings: ChatSettings | null;
-  tokenCount: number | null;
+  inputTokenCount: number | null;
+  outputTokenCount: number | null;
 };
 
 export type DraftConversation = Omit<Conversation, 'id'>;
