@@ -12,6 +12,12 @@ import { Tooltip, useColorScheme, useMediaQuery } from '@mui/material';
 import DarkModeIcon from '@mui/icons-material/DarkMode';
 import LightModeIcon from '@mui/icons-material/LightMode';
 import SettingsIcon from '@mui/icons-material/Settings';
+import { useAtomValue } from 'jotai/index';
+import {
+  conversationsAtom,
+  isGlobalSettingsLoadedAtom,
+} from '../data/atoms.ts';
+import { useNavigate } from 'react-router';
 
 const drawerWidth = 240;
 
@@ -50,6 +56,11 @@ export const AppLayout = ({ children, onSettingsClick }: AppLayoutProps) => {
 
   const colorScheme = useColorScheme();
 
+  const conversations = useAtomValue(conversationsAtom);
+  const isGlobalSettingsLoaded = useAtomValue(isGlobalSettingsLoadedAtom);
+
+  const navigate = useNavigate();
+
   useEffect(() => {
     setDrawerOpen(!isMobile);
   }, [isMobile]);
@@ -66,7 +77,16 @@ export const AppLayout = ({ children, onSettingsClick }: AppLayoutProps) => {
             <ListItemText primary="New Chat" />
           </ListItemButton>
         </ListItem>
-        {/* ... */}
+        {conversations.map((conversation) => (
+          <ListItem
+            key={conversation.id}
+            onClick={() => navigate(`/app/${conversation.id}`)}
+          >
+            <ListItemButton>
+              <ListItemText primary={conversation.title} />
+            </ListItemButton>
+          </ListItem>
+        ))}
       </List>
     </Box>
   );
@@ -119,9 +139,11 @@ export const AppLayout = ({ children, onSettingsClick }: AppLayoutProps) => {
               </Tooltip>
             )}
           </IconButton>
-          <IconButton color="inherit" onClick={onSettingsClick}>
-            <SettingsIcon />
-          </IconButton>
+          {isGlobalSettingsLoaded ? (
+            <IconButton color="inherit" onClick={onSettingsClick}>
+              <SettingsIcon />
+            </IconButton>
+          ) : null}
         </Box>
         {children}
       </Main>

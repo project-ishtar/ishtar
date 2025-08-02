@@ -36,15 +36,10 @@ export const ChatSettings = ({ isOpen, onClose }: ChatSettingsProps) => {
   const navigate = useNavigate();
 
   const [isLoading, setLoading] = useState(true);
-
   const [chatTitle, setChatTitle] = useState('');
-
   const [systemInstruction, setSystemInstruction] = useState<string>();
-
   const [temperature, setTemperature] = useState(1);
-
   const [model, setModel] = useState<GeminiModel>();
-
   const [supportedModels, setSupportedModels] = useState<GeminiModel[]>([
     'gemini-2.0-flash-lite',
   ]);
