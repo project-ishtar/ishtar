@@ -31,8 +31,22 @@ export const MainContainer = () => {
               }
             />
             <Route>
-              <Route path="/app" element={<App />} />
-              <Route path="/app/:conversationId" element={<App />} />
+              <Route
+                path="/app"
+                element={
+                  <ProtectedRoute>
+                    <App />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/app/:conversationId"
+                element={
+                  <ProtectedRoute>
+                    <App />
+                  </ProtectedRoute>
+                }
+              />
             </Route>
             <Route path="*" element={<NotFoundHandler />} />
           </Routes>

@@ -1,6 +1,5 @@
 import { AppLayout } from './app-layout.tsx';
 import { AiContent } from './ai-content.tsx';
-import { ProtectedRoute } from '../routes/protected-route.tsx';
 import { useEffect, useState } from 'react';
 import { ChatSettings } from './chat-settings.tsx';
 import type { Conversation } from '@ishtar/commons/types';
@@ -80,7 +79,7 @@ export const App = () => {
   }
 
   return (
-    <ProtectedRoute>
+    <>
       <AppLayout onSettingsClick={() => setSettingsOpen(true)}>
         <AiContent />
       </AppLayout>
@@ -90,6 +89,6 @@ export const App = () => {
           onClose={() => setSettingsOpen(false)}
         />
       ) : undefined}
-    </ProtectedRoute>
+    </>
   );
 };
