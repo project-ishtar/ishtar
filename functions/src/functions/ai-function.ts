@@ -120,27 +120,24 @@ export const callAi = onCall<AiRequest>(
         .get();
 
       const contentsArray = getContentsArray(messagesInOrderDoc);
-      const firstContent = contentsArray[0];
-      const restContent = contentsArray.splice(1);
 
-      contents.push(firstContent);
+      const summaryContent = contentsArray[0];
+      const contentsAfterSummary = contentsArray.splice(1);
 
-      const numberOfPreviousMessagesToFetch = 11 - messagesInOrderDoc.size;
+      contents.push(summaryContent);
 
-      if (numberOfPreviousMessagesToFetch > 0) {
-        const previousMessagesInOrderSnapshot = await messagesRef
-          .orderBy('timestamp', 'desc')
-          .orderBy(admin.firestore.FieldPath.documentId())
-          .startAfter(summarizedMessageDoc)
-          .limit(numberOfPreviousMessagesToFetch)
-          .get();
+      const previousMessagesInOrderSnapshot = await messagesRef
+        .orderBy('timestamp', 'desc')
+        .orderBy(admin.firestore.FieldPath.documentId())
+        .startAfter(summarizedMessageDoc)
+        .limit(10)
+        .get();
 
-        contents.push(
-          ...getContentsArray(previousMessagesInOrderSnapshot).reverse(),
-        );
-      }
+      contents.push(
+        ...getContentsArray(previousMessagesInOrderSnapshot).reverse(),
+      );
 
-      contents.push(...restContent);
+      contents.push(...contentsAfterSummary);
     } else {
       messagesInOrderDoc = await messagesRef.orderBy('timestamp', 'asc').get();
 
@@ -220,7 +217,7 @@ export const callAi = onCall<AiRequest>(
 
     batch.set(newModelMessageRef, {
       role: 'model',
-      content: response.text,
+      content: response.text ?? '',
       timestamp: new Date(),
       tokenCount: outputTokenCount,
       isSummary: false,
@@ -243,7 +240,7 @@ export const callAi = onCall<AiRequest>(
       );
     }
 
-    if (totalInputTokenCount >= 10000 || contents.length + 2 >= 50) {
+    if (totalInputTokenCount >= 10000) {
       try {
         const { summarizedMessageId, inputTokenCount, outputTokenCount } =
           await generateSummary({
@@ -365,7 +362,7 @@ async function generateSummary({
   const newModelSummarizedMessageRef = messagesRef.doc();
   batch.set(newModelSummarizedMessageRef, {
     role: 'model',
-    content: summaryResponse.text,
+    content: summaryResponse.text ?? '',
     timestamp: new Date(),
     tokenCount: outputTokenCount,
     isSummary: true,

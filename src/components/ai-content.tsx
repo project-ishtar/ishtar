@@ -129,10 +129,18 @@ export const AiContent = (): JSX.Element => {
   );
 
   return (
-    <>
-      <Container
-        maxWidth={false}
-        disableGutters
+    <Container
+      maxWidth={false}
+      disableGutters
+      sx={{
+        flexGrow: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: response?.response ? 'flex-end' : 'center',
+      }}
+    >
+      <Box
+        component="main"
         sx={{
           flexGrow: 1,
           display: 'flex',
@@ -140,78 +148,68 @@ export const AiContent = (): JSX.Element => {
           justifyContent: response?.response ? 'flex-end' : 'center',
         }}
       >
-        <Box
-          component="main"
-          sx={{
-            flexGrow: 1,
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: response?.response ? 'flex-end' : 'center',
-          }}
-        >
-          {response?.response ? (
-            <Box>
-              <Markdown>{response.response}</Markdown>
-            </Box>
-          ) : (
-            <Box sx={{ textAlign: 'center' }}>
-              <Typography variant="h4" gutterBottom>
-                How can I help you today?
+        {response?.response ? (
+          <Box>
+            <Markdown>{response.response}</Markdown>
+          </Box>
+        ) : (
+          <Box sx={{ textAlign: 'center' }}>
+            <Typography variant="h4" gutterBottom>
+              How can I help you today?
+            </Typography>
+            <Typography variant="body1" color="text.secondary">
+              Your AI assistant is ready. Enter a prompt below to begin.
+            </Typography>
+          </Box>
+        )}
+      </Box>
+      <Box
+        component="footer"
+        sx={{
+          // p: 2,
+          bgcolor: 'background.paper',
+          borderTop: 1,
+          borderColor: 'divider',
+        }}
+      >
+        <TextField
+          autoFocus={!isSmallBreakpoint}
+          onChange={onPromptChange}
+          onKeyDown={onInputKeyDown}
+          placeholder="Prompt"
+          value={prompt}
+          multiline
+          fullWidth
+          inputRef={inputRef}
+          sx={{ mb: 2 }}
+        />
+        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+          <LoadingButton
+            onClick={onSubmit}
+            variant="outlined"
+            color="success"
+            disabled={shouldSubmitButtonBeDisabled}
+            loading={isPromptSubmitted}
+            loadingIndicator={<CircularProgress size={20} color="info" />}
+          >
+            Submit
+          </LoadingButton>
+          <Box
+            sx={{
+              display: 'flex',
+              gap: 1,
+              alignItems: 'center',
+              ml: 'auto',
+            }}
+          >
+            {response?.tokenCount ? (
+              <Typography variant="caption">
+                {`${response.tokenCount} tokens used`}
               </Typography>
-              <Typography variant="body1" color="text.secondary">
-                Your AI assistant is ready. Enter a prompt below to begin.
-              </Typography>
-            </Box>
-          )}
-        </Box>
-        <Box
-          component="footer"
-          sx={{
-            // p: 2,
-            bgcolor: 'background.paper',
-            borderTop: 1,
-            borderColor: 'divider',
-          }}
-        >
-          <TextField
-            autoFocus={!isSmallBreakpoint}
-            onChange={onPromptChange}
-            onKeyDown={onInputKeyDown}
-            placeholder="Prompt"
-            value={prompt}
-            multiline
-            fullWidth
-            inputRef={inputRef}
-            sx={{ mb: 2 }}
-          />
-          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-            <LoadingButton
-              onClick={onSubmit}
-              variant="outlined"
-              color="success"
-              disabled={shouldSubmitButtonBeDisabled}
-              loading={isPromptSubmitted}
-              loadingIndicator={<CircularProgress size={20} color="info" />}
-            >
-              Submit
-            </LoadingButton>
-            <Box
-              sx={{
-                display: 'flex',
-                gap: 1,
-                alignItems: 'center',
-                ml: 'auto',
-              }}
-            >
-              {response?.tokenCount ? (
-                <Typography variant="caption">
-                  {`${response.tokenCount} tokens used`}
-                </Typography>
-              ) : null}
-            </Box>
+            ) : null}
           </Box>
         </Box>
-      </Container>
-    </>
+      </Box>
+    </Container>
   );
 };
