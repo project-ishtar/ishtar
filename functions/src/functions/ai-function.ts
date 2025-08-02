@@ -120,15 +120,28 @@ export const callAi = onCall<AiRequest>(
         .startAt(summarizedMessageDoc)
         .get();
 
-      const previousMessagesInOrderRef = await messagesRef
-        .orderBy('timestamp', 'desc')
-        .orderBy(admin.firestore.FieldPath.documentId())
-        .startAfter(summarizedMessageDoc)
-        .limit(11 - messagesInOrderDoc.size)
-        .get();
+      const contentsArray = getContentsArray(messagesInOrderDoc);
+      const firstContent = contentsArray[0];
+      const restContent = contentsArray.splice(1);
 
-      contents.push(...getContentsArray(messagesInOrderDoc));
-      contents.push(...getContentsArray(previousMessagesInOrderRef).reverse());
+      contents.push(firstContent);
+
+      const numberOfPreviousMessagesToFetch = 11 - messagesInOrderDoc.size;
+
+      if (numberOfPreviousMessagesToFetch > 0) {
+        const previousMessagesInOrderSnapshot = await messagesRef
+          .orderBy('timestamp', 'desc')
+          .orderBy(admin.firestore.FieldPath.documentId())
+          .startAfter(summarizedMessageDoc)
+          .limit(numberOfPreviousMessagesToFetch)
+          .get();
+
+        contents.push(
+          ...getContentsArray(previousMessagesInOrderSnapshot).reverse(),
+        );
+      }
+
+      contents.push(...restContent);
     } else {
       messagesInOrderDoc = await messagesRef.orderBy('timestamp', 'asc').get();
 
@@ -140,9 +153,14 @@ export const callAi = onCall<AiRequest>(
     const batch = db.batch();
 
     const model =
-      conversation?.chatSettings?.model ??
-      globalSettings?.defaultGeminiModel ??
-      'gemini-2.0-flash-lite';
+      conversation?.chatSettings?.model ?? globalSettings?.defaultGeminiModel;
+
+    if (!model) {
+      throw new HttpsError('permission-denied', 'No AI model available.');
+    }
+
+    console.log(`model: ${model}`);
+    console.log(`content length: ${contents.length}`);
 
     const newUserMessageRef = messagesRef.doc();
 
@@ -179,6 +197,8 @@ export const callAi = onCall<AiRequest>(
     const inputTokenCount = response.usageMetadata?.promptTokenCount ?? 0;
     const outputTokenCount = response.usageMetadata?.candidatesTokenCount ?? 0;
     const totalTokenCount = response.usageMetadata?.totalTokenCount ?? 0;
+
+    console.log(`Usage metadata: ${JSON.stringify(response.usageMetadata)}`);
 
     batch.update(newUserMessageRef, {
       tokenCount: inputTokenCount,
@@ -221,7 +241,7 @@ export const callAi = onCall<AiRequest>(
 
     let summaryToken = 0;
 
-    if (totalTokenCount >= 15000) {
+    if (totalTokenCount >= 10000 || contents.length + 2 >= 50) {
       try {
         summaryToken = await generateSummary({
           messagesInOrderDoc,
@@ -294,10 +314,8 @@ async function generateSummary({
 
   const batch = db.batch();
 
-  const maxOutputTokens = 2000;
-
   const instructions = [
-    `You are an AI tasked with generating concise, factual summaries of chat conversations for long-term memory. Extract all key information: user's primary goal, decisions made, critical facts exchanged, any unresolved issues, and the current status of the conversation. The summary should be readable by another AI for future context. Do NOT include conversational filler, greetings, or pleasantries. Keep it under ${maxOutputTokens} tokens.`,
+    `You are an AI tasked with generating concise, factual summaries of chat conversations for long-term memory. Extract all key information: user's primary goal, decisions made, critical facts exchanged, any unresolved issues, and the current status of the conversation. The summary should be readable by another AI for future context. Do NOT include conversational filler, greetings, or pleasantries.`,
   ];
 
   if (systemInstruction) {
@@ -316,13 +334,12 @@ async function generateSummary({
   } as Message);
 
   const summaryResponse = await ai.models.generateContent({
-    model: 'gemini-2.5-pro',
+    model: 'gemini-2.5-flash',
     contents: contentsToSummarize,
     config: {
       ...chatConfig,
       temperature: 0.3,
       systemInstruction: instructions,
-      maxOutputTokens,
     },
   });
 

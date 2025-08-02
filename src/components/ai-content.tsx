@@ -1,4 +1,10 @@
-import React, { type JSX, useCallback, useRef, useState } from 'react';
+import React, {
+  type JSX,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 import { getAiResponse } from '../ai.ts';
 import Markdown from 'react-markdown';
 import TextField from '@mui/material/TextField';
@@ -9,6 +15,9 @@ import CircularProgress from '@mui/material/CircularProgress';
 import LoadingButton from '@mui/lab/LoadingButton';
 import type { AiResponse } from '@ishtar/commons/types';
 import { useParams, useNavigate } from 'react-router';
+import { firebaseApp } from '../firebase.ts';
+import { doc, getDoc } from 'firebase/firestore';
+import { conversationConverter } from '../converters/conversation-converter.ts';
 
 export const AiContent = (): JSX.Element => {
   const [prompt, setPrompt] = useState<string>();
@@ -21,10 +30,34 @@ export const AiContent = (): JSX.Element => {
   const theme = useTheme();
   const isSmallBreakpoint = useMediaQuery(theme.breakpoints.down('md'));
 
-  const params = useParams();
+  const params = useParams<{ conversationId?: string }>();
   const navigate = useNavigate();
 
   const shouldSubmitButtonBeDisabled = !prompt || isPromptSubmitted;
+
+  const checkConversationExistence = useCallback(async () => {
+    const currentUserId = firebaseApp.auth?.currentUser?.uid;
+
+    if (params.conversationId && currentUserId) {
+      const conversationDocRef = doc(
+        firebaseApp.firestore,
+        'users',
+        currentUserId,
+        'conversations',
+        params.conversationId,
+      ).withConverter(conversationConverter);
+
+      const conversationDocSnap = await getDoc(conversationDocRef);
+
+      if (!conversationDocSnap.exists()) {
+        navigate('/app');
+      }
+    }
+  }, [navigate, params.conversationId]);
+
+  useEffect(() => {
+    checkConversationExistence();
+  }, [checkConversationExistence]);
 
   const onPromptChange = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {

@@ -45,6 +45,18 @@ export const ChatSettings = ({ isOpen, onClose }: ChatSettingsProps) => {
 
   const [model, setModel] = useState<GeminiModel>();
 
+  const [supportedModels, setSupportedModels] = useState<GeminiModel[]>([
+    'gemini-2.0-flash-lite',
+  ]);
+
+  const setGeminiModels = useCallback(async () => {
+    const globalSettings = await getGlobalSettings();
+
+    if (globalSettings?.supportedGeminiModels) {
+      setSupportedModels(globalSettings.supportedGeminiModels);
+    }
+  }, []);
+
   const initializeData = useCallback(async () => {
     const currentUserId = firebaseApp.auth?.currentUser?.uid;
     const conversationId = params.conversationId;
@@ -82,8 +94,9 @@ export const ChatSettings = ({ isOpen, onClose }: ChatSettingsProps) => {
   }, [params.conversationId]);
 
   useEffect(() => {
+    setGeminiModels();
     initializeData();
-  }, [initializeData]);
+  }, [initializeData, setGeminiModels]);
 
   const onSave = useCallback(async () => {
     const currentUserId = firebaseApp.auth?.currentUser?.uid;
@@ -215,10 +228,11 @@ export const ChatSettings = ({ isOpen, onClose }: ChatSettingsProps) => {
                   setModel(event.target.value)
                 }
               >
-                <MenuItem value="gemini-2.0-flash">gemini-2.0-flash</MenuItem>
-                <MenuItem value="gemini-2.0-flash-lite">
-                  gemini-2.0-flash-lite
-                </MenuItem>
+                {supportedModels.map((model) => (
+                  <MenuItem key={model} value={model}>
+                    {model}
+                  </MenuItem>
+                ))}
               </Select>
             </FormControl>
           </Box>
