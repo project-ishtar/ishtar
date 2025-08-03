@@ -32,7 +32,7 @@ export const App = () => {
           currentUserId,
           'conversations',
         ).withConverter(conversationConverter),
-        where('isDeleted', '!=', true),
+        where('isDeleted', '==', false),
         orderBy('createdAt', 'asc'),
       );
 

@@ -149,7 +149,7 @@ export const callAi = onCall<AiRequest>(
     const batch = db.batch();
 
     const model =
-      conversation?.chatSettings?.model ?? globalSettings?.defaultGeminiModel;
+      conversation?.chatSettings?.model ?? globalSettings.defaultGeminiModel;
 
     if (!model) {
       throw new HttpsError('permission-denied', 'No AI model available.');
@@ -173,16 +173,13 @@ export const callAi = onCall<AiRequest>(
       contents,
       config: {
         ...chatConfig,
-        systemInstruction: conversation?.chatSettings?.systemInstruction
-          ? {
-              role: 'system',
-              text: conversation?.chatSettings?.systemInstruction,
-            }
-          : undefined,
+        systemInstruction:
+          conversation?.chatSettings?.systemInstruction ?? undefined,
         temperature:
-          conversation?.chatSettings?.temperature ??
-          globalSettings?.temperature ??
-          1,
+          conversation?.chatSettings?.temperature ?? globalSettings.temperature,
+        ...(model !== 'gemini-2.5-pro'
+          ? { thinkingConfig: { thinkingBudget: 0 } }
+          : {}),
       },
     });
 
