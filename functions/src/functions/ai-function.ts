@@ -197,12 +197,12 @@ export const callAi = onCall<AiRequest>(
       tokenCount: inputTokenCount,
     });
 
-    let totalInputTokenCount =
+    const totalInputTokenCount =
       (conversation.inputTokenCount ?? 0) + inputTokenCount;
-    let totalOutputTokenCount =
+    const totalOutputTokenCount =
       (conversation.outputTokenCount ?? 0) + outputTokenCount;
 
-    let tokenCountForConversation =
+    const tokenCountForConversation =
       totalInputTokenCount + totalOutputTokenCount;
 
     batch.update(conversationRef, {
@@ -238,34 +238,10 @@ export const callAi = onCall<AiRequest>(
       );
     }
 
-    if (totalInputTokenCount >= 10000) {
-      try {
-        const { summarizedMessageId, inputTokenCount, outputTokenCount } =
-          await generateSummary({
-            messagesInOrderDoc,
-            messagesRef,
-            systemInstruction: conversation?.chatSettings?.systemInstruction,
-            userPrompt: prompt,
-            responseFromModel: response.text,
-          });
-
-        totalInputTokenCount += inputTokenCount;
-        totalOutputTokenCount += outputTokenCount;
-
-        tokenCountForConversation =
-          totalInputTokenCount + totalOutputTokenCount;
-
-        await conversationRef.update({
-          summarizedMessageId: summarizedMessageId,
-          lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
-          inputTokenCount: totalInputTokenCount,
-          outputTokenCount: totalOutputTokenCount,
-        });
-      } catch (error) {
-        console.warn('Summarization failed.');
-        console.warn(error);
-      }
-    }
+    JSON.stringify(`model used: ${JSON.stringify(response.modelVersion)}`);
+    JSON.stringify(
+      `prompt feedback: ${JSON.stringify(response.promptFeedback)}`,
+    );
 
     return {
       id: newModelMessageRef.id,
@@ -275,102 +251,3 @@ export const callAi = onCall<AiRequest>(
     };
   },
 );
-
-async function generateSummary({
-  messagesInOrderDoc,
-  responseFromModel,
-  userPrompt,
-  systemInstruction,
-  messagesRef,
-}: {
-  messagesInOrderDoc: admin.firestore.QuerySnapshot<
-    Message,
-    admin.firestore.DocumentData
-  >;
-  messagesRef: admin.firestore.CollectionReference<
-    Message,
-    admin.firestore.DocumentData
-  >;
-  userPrompt: string;
-  responseFromModel: string;
-  systemInstruction?: string | null;
-}): Promise<{
-  summarizedMessageId: string;
-  inputTokenCount: number;
-  outputTokenCount: number;
-}> {
-  const summarizationPrompt =
-    'Based on the conversation above, provide a concise summary that captures the essence for future reference.';
-
-  const contentsToSummarize: Content[] = [
-    ...(messagesInOrderDoc.size > 0
-      ? getContentsArray(messagesInOrderDoc)
-      : []),
-    { role: 'user', parts: [{ text: userPrompt }] },
-    { role: 'model', parts: [{ text: responseFromModel }] },
-    {
-      role: 'user',
-      parts: [
-        {
-          text: summarizationPrompt,
-        },
-      ],
-    },
-  ];
-
-  const batch = db.batch();
-
-  const instructions = [
-    `You are an AI tasked with generating concise, factual summaries of chat conversations for long-term memory. Extract all key information: user's primary goal, decisions made, critical facts exchanged, any unresolved issues, and the current status of the conversation. The summary should be readable by another AI for future context. Do NOT include conversational filler, greetings, or pleasantries.`,
-  ];
-
-  if (systemInstruction) {
-    instructions.push(
-      `Original system instruction used in the chats you are to summarize: "${systemInstruction}"`,
-    );
-  }
-
-  const newSystemMessageRef = messagesRef.doc();
-  batch.set(newSystemMessageRef, {
-    role: 'system',
-    content: summarizationPrompt,
-    timestamp: new Date(),
-    tokenCount: null,
-    isSummary: false,
-  } as Message);
-
-  const summaryResponse = await ai.models.generateContent({
-    model: 'gemini-2.5-flash',
-    contents: contentsToSummarize,
-    config: {
-      ...chatConfig,
-      temperature: 0.3,
-      systemInstruction: instructions,
-    },
-  });
-
-  const inputTokenCount = summaryResponse.usageMetadata?.promptTokenCount ?? 0;
-  const outputTokenCount =
-    summaryResponse.usageMetadata?.candidatesTokenCount ?? 0;
-
-  batch.update(newSystemMessageRef, {
-    tokenCount: inputTokenCount,
-  });
-
-  const newModelSummarizedMessageRef = messagesRef.doc();
-  batch.set(newModelSummarizedMessageRef, {
-    role: 'model',
-    content: summaryResponse.text ?? '',
-    timestamp: new Date(),
-    tokenCount: outputTokenCount,
-    isSummary: true,
-  } as Message);
-
-  await batch.commit();
-
-  return {
-    summarizedMessageId: newModelSummarizedMessageRef.id,
-    inputTokenCount,
-    outputTokenCount,
-  };
-}
