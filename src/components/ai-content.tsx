@@ -6,6 +6,7 @@ import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
 import { Container, useMediaQuery, useTheme } from '@mui/material';
 import CircularProgress from '@mui/material/CircularProgress';
+import SendIcon from '@mui/icons-material/Send';
 import LoadingButton from '@mui/lab/LoadingButton';
 import type { AiResponse } from '@ishtar/commons/types';
 import { useParams, useNavigate } from 'react-router';
@@ -120,24 +121,23 @@ export const AiContent = (): JSX.Element => {
       <Box
         component="footer"
         sx={{
-          // p: 2,
+          p: 2,
           bgcolor: 'background.paper',
           borderTop: 1,
           borderColor: 'divider',
         }}
       >
-        <TextField
-          autoFocus={!isSmallBreakpoint}
-          onChange={onPromptChange}
-          onKeyDown={onInputKeyDown}
-          placeholder="Prompt"
-          value={prompt}
-          multiline
-          fullWidth
-          inputRef={inputRef}
-          sx={{ mb: 2 }}
-        />
-        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+        <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
+          <TextField
+            autoFocus={!isSmallBreakpoint}
+            onChange={onPromptChange}
+            onKeyDown={onInputKeyDown}
+            placeholder="Prompt"
+            value={prompt}
+            multiline
+            inputRef={inputRef}
+            sx={{ flexGrow: 1 }}
+          />
           <LoadingButton
             onClick={onSubmit}
             variant="outlined"
@@ -146,22 +146,15 @@ export const AiContent = (): JSX.Element => {
             loading={isPromptSubmitted}
             loadingIndicator={<CircularProgress size={20} color="info" />}
           >
-            Submit
+            <SendIcon />
           </LoadingButton>
-          <Box
-            sx={{
-              display: 'flex',
-              gap: 1,
-              alignItems: 'center',
-              ml: 'auto',
-            }}
-          >
-            {response?.tokenCount ? (
-              <Typography variant="caption">
-                {`${response.tokenCount} tokens used`}
-              </Typography>
-            ) : null}
-          </Box>
+        </Box>
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+          {response?.tokenCount ? (
+            <Typography variant="caption">
+              {`${response.tokenCount} tokens used`}
+            </Typography>
+          ) : null}
         </Box>
       </Box>
     </Container>
