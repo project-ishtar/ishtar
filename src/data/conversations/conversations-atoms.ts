@@ -47,6 +47,6 @@ export const conversationsWriteAtom = atom(
   },
 );
 
-export const conversationsStatusAtom = atom((get) => {
-  return get(loadableConversations).state;
-});
+export const conversationsStatusAtom = atom(
+  (get) => get(loadableConversations).state,
+);
