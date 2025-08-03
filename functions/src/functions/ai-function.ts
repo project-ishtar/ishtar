@@ -11,7 +11,8 @@ import {
 import { ai, db } from '../index';
 import admin from 'firebase-admin';
 import { chatMessageConverter } from '../converters/message-converter';
-import { globalSettings } from '../cache/global-settings';
+import { getUserById } from '../cache/user-cache';
+import { getGlobalSettings } from '../cache/global-settings';
 
 const functionOptions = {
   secrets: ['GEMINI_API_KEY'],
@@ -45,12 +46,15 @@ function getContentsArray(
 export const callAi = onCall<AiRequest>(
   functionOptions,
   async (request): Promise<AiResponse> => {
-    if (!request.auth) {
+    if (!request.auth?.uid) {
       throw new HttpsError(
         'unauthenticated',
         'You must be authenticated to call this function.',
       );
     }
+
+    const user = await getUserById(request.auth.uid);
+    const globalSettings = getGlobalSettings(user.role);
 
     const { prompt, conversationId: convoId } = request.data;
 
@@ -154,9 +158,6 @@ export const callAi = onCall<AiRequest>(
     if (!model) {
       throw new HttpsError('permission-denied', 'No AI model available.');
     }
-
-    console.log(`model: ${model}`);
-    console.log(`content length: ${contents.length}`);
 
     const newUserMessageRef = messagesRef.doc();
 

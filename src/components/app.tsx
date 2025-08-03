@@ -8,15 +8,17 @@ import { conversationsStatusAtom } from '../data/conversations/conversations-ato
 import { useCurrentConversation } from '../data/conversations/use-current-conversation.ts';
 import { Navigate, useParams } from 'react-router';
 import type { RouteParams } from '../routes/route-params.ts';
+import { userStatusAtom } from '../data/current-user/current-user-atom.ts';
 
 export const App = () => {
   const [isSettingsOpen, setSettingsOpen] = useState(false);
-
-  const conversationsFetchStatus = useAtomValue(conversationsStatusAtom);
   const currentConversation = useCurrentConversation();
   const params = useParams<RouteParams>();
 
-  if (conversationsFetchStatus === 'loading') {
+  const conversationsFetchStatus = useAtomValue(conversationsStatusAtom);
+  const userFetchStatus = useAtomValue(userStatusAtom);
+
+  if (conversationsFetchStatus === 'loading' || userFetchStatus === 'loading') {
     return <LoadingSpinner />;
   }
 

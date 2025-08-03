@@ -1,24 +1,6 @@
 import type { ChatSettings, Conversation } from '@ishtar/commons/types';
-import {
-  type PartialWithFieldValue,
-  QueryDocumentSnapshot,
-  Timestamp,
-} from 'firebase/firestore';
-
-type ConverterArgs<T, U, V> = {
-  toFirestore?: (data: PartialWithFieldValue<T>) => U;
-  fromFirestore?: (id: string, data: T) => V;
-};
-
-const converter = <T, U = PartialWithFieldValue<T>, V = T>({
-  toFirestore,
-  fromFirestore,
-}: ConverterArgs<T, U, V>) => ({
-  toFirestore: (data: PartialWithFieldValue<T>) =>
-    toFirestore ? toFirestore(data) : data,
-  fromFirestore: (snap: QueryDocumentSnapshot<T>) =>
-    fromFirestore ? fromFirestore(snap.id, snap.data()) : snap.data(),
-});
+import { Timestamp } from 'firebase/firestore';
+import { converter } from './converters.ts';
 
 export const conversationConverter = converter<Conversation>({
   toFirestore: (conversation) => {
