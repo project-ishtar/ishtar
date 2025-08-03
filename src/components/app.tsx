@@ -33,7 +33,7 @@ export const App = () => {
   return (
     <>
       <AppLayout onSettingsClick={() => setSettingsOpen(true)}>
-        <AiContent />
+        <AiContent key={params.conversationId} />
       </AppLayout>
       <ChatSettings
         isOpen={isSettingsOpen}
