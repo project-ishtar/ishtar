@@ -1,62 +1,31 @@
 import { AppLayout } from './app-layout.tsx';
 import { AiContent } from './ai-content.tsx';
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import { ChatSettings } from './chat-settings.tsx';
-import type { Conversation } from '@ishtar/commons/types';
-import { collection, query, orderBy, getDocs, where } from 'firebase/firestore';
-import { firebaseApp } from '../firebase.ts';
-import { conversationConverter } from '../converters/conversation-converter.ts';
-import { useAtomValue, useSetAtom } from 'jotai';
-import {
-  conversationsAtom,
-  isGlobalSettingsLoadedAtom,
-} from '../data/atoms.ts';
+import { useAtomValue } from 'jotai';
 import { LoadingSpinner } from './loading-spinner.tsx';
+import { conversationsStatusAtom } from '../data/conversations/conversations-atoms.ts';
+import { useCurrentConversation } from '../data/conversations/use-current-conversation.ts';
+import { Navigate, useParams } from 'react-router';
+import type { RouteParams } from '../routes/route-params.ts';
 
 export const App = () => {
-  const [isLoading, setLoading] = useState(true);
   const [isSettingsOpen, setSettingsOpen] = useState(false);
 
-  const setConversations = useSetAtom(conversationsAtom);
-  const isGlobalSettingsLoaded = useAtomValue(isGlobalSettingsLoadedAtom);
+  const conversationsFetchStatus = useAtomValue(conversationsStatusAtom);
+  const currentConversation = useCurrentConversation();
+  const params = useParams<RouteParams>();
 
-  const initConversations = useCallback(async () => {
-    const currentUserId = firebaseApp.auth.currentUser?.uid;
-
-    if (currentUserId && isLoading) {
-      const conversationsRef = query(
-        collection(
-          firebaseApp.firestore,
-          'users',
-          currentUserId,
-          'conversations',
-        ).withConverter(conversationConverter),
-        where('isDeleted', '==', false),
-        orderBy('createdAt', 'asc'),
-      );
-
-      const conversationDocs = await getDocs(conversationsRef);
-
-      const conversationsArr: Conversation[] = [];
-
-      conversationDocs.forEach((conversationDoc) => {
-        conversationsArr.push(conversationDoc.data() as Conversation);
-      });
-
-      setConversations(conversationsArr);
-
-      if (isLoading) {
-        setLoading(false);
-      }
-    }
-  }, [isLoading, setConversations]);
-
-  useEffect(() => {
-    initConversations();
-  }, [initConversations]);
-
-  if (isLoading) {
+  if (conversationsFetchStatus === 'loading') {
     return <LoadingSpinner />;
+  }
+
+  if (
+    conversationsFetchStatus === 'hasData' &&
+    params.conversationId &&
+    !currentConversation
+  ) {
+    return <Navigate to="/app" />;
   }
 
   return (
@@ -64,12 +33,10 @@ export const App = () => {
       <AppLayout onSettingsClick={() => setSettingsOpen(true)}>
         <AiContent />
       </AppLayout>
-      {isGlobalSettingsLoaded ? (
-        <ChatSettings
-          isOpen={isSettingsOpen}
-          onClose={() => setSettingsOpen(false)}
-        />
-      ) : undefined}
+      <ChatSettings
+        isOpen={isSettingsOpen}
+        onClose={() => setSettingsOpen(false)}
+      />
     </>
   );
 };

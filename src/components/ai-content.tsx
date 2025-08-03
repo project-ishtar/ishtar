@@ -1,10 +1,4 @@
-import React, {
-  type JSX,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from 'react';
+import React, { type JSX, useCallback, useRef, useState } from 'react';
 import { getAiResponse } from '../ai.ts';
 import Markdown from 'react-markdown';
 import TextField from '@mui/material/TextField';
@@ -13,13 +7,10 @@ import Box from '@mui/material/Box';
 import { Container, useMediaQuery, useTheme } from '@mui/material';
 import CircularProgress from '@mui/material/CircularProgress';
 import LoadingButton from '@mui/lab/LoadingButton';
-import type { AiResponse, Conversation } from '@ishtar/commons/types';
+import type { AiResponse } from '@ishtar/commons/types';
 import { useParams, useNavigate } from 'react-router';
-import { firebaseApp } from '../firebase.ts';
-import { doc, getDoc } from 'firebase/firestore';
-import { conversationConverter } from '../converters/conversation-converter.ts';
 import type { RouteParams } from '../routes/route-params.ts';
-import { useConversations } from '../data/use-conversations.ts';
+import { useConversations } from '../data/conversations/use-conversations.ts';
 
 export const AiContent = (): JSX.Element => {
   const [prompt, setPrompt] = useState<string>();
@@ -35,33 +26,9 @@ export const AiContent = (): JSX.Element => {
   const params = useParams<RouteParams>();
   const navigate = useNavigate();
 
-  const { addConversation } = useConversations();
+  const { fetchAndAppendConversation } = useConversations();
 
   const shouldSubmitButtonBeDisabled = !prompt || isPromptSubmitted;
-
-  const checkConversationExistence = useCallback(async () => {
-    const currentUserId = firebaseApp.auth?.currentUser?.uid;
-
-    if (params.conversationId && currentUserId) {
-      const conversationDocRef = doc(
-        firebaseApp.firestore,
-        'users',
-        currentUserId,
-        'conversations',
-        params.conversationId,
-      ).withConverter(conversationConverter);
-
-      const conversationDocSnap = await getDoc(conversationDocRef);
-
-      if (!conversationDocSnap.exists()) {
-        navigate('/app');
-      }
-    }
-  }, [navigate, params.conversationId]);
-
-  useEffect(() => {
-    checkConversationExistence();
-  }, [checkConversationExistence]);
 
   const onPromptChange = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -71,9 +38,7 @@ export const AiContent = (): JSX.Element => {
   );
 
   const onSubmit = useCallback(async () => {
-    const currentUserId = firebaseApp.auth?.currentUser?.uid;
-
-    if (prompt && currentUserId) {
+    if (prompt) {
       setIsPromptSubmitted(true);
 
       const response = await getAiResponse({
@@ -83,18 +48,7 @@ export const AiContent = (): JSX.Element => {
 
       if (response) {
         if (params.conversationId !== response.conversationId) {
-          const conversationRef = doc(
-            firebaseApp.firestore,
-            'users',
-            currentUserId,
-            'conversations',
-            response.conversationId,
-          ).withConverter(conversationConverter);
-
-          const conversationSnapshot = await getDoc(conversationRef);
-          const conversation = conversationSnapshot.data() as Conversation;
-
-          addConversation(conversation);
+          await fetchAndAppendConversation(response.conversationId);
         }
 
         setResponse({
@@ -113,7 +67,7 @@ export const AiContent = (): JSX.Element => {
     }
 
     setIsPromptSubmitted(false);
-  }, [addConversation, navigate, params.conversationId, prompt]);
+  }, [fetchAndAppendConversation, navigate, params.conversationId, prompt]);
 
   const onInputKeyDown = useCallback(
     (event: React.KeyboardEvent) => {
