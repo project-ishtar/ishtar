@@ -6,13 +6,12 @@ import type { Conversation } from '@ishtar/commons/types';
 import { collection, query, orderBy, getDocs, where } from 'firebase/firestore';
 import { firebaseApp } from '../firebase.ts';
 import { conversationConverter } from '../converters/conversation-converter.ts';
-import CircularProgress from '@mui/material/CircularProgress';
-import Box from '@mui/material/Box';
 import { useAtomValue, useSetAtom } from 'jotai';
 import {
   conversationsAtom,
   isGlobalSettingsLoadedAtom,
 } from '../data/atoms.ts';
+import { LoadingSpinner } from './loading-spinner.tsx';
 
 export const App = () => {
   const [isLoading, setLoading] = useState(true);
@@ -57,18 +56,7 @@ export const App = () => {
   }, [initConversations]);
 
   if (isLoading) {
-    return (
-      <Box
-        sx={{
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          minHeight: '100vh',
-        }}
-      >
-        <CircularProgress size={100} />
-      </Box>
-    );
+    return <LoadingSpinner />;
   }
 
   return (
