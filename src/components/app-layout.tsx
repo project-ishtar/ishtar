@@ -19,14 +19,10 @@ import EditSquareIcon from '@mui/icons-material/EditSquare';
 import LogoutIcon from '@mui/icons-material/Logout';
 import LightModeIcon from '@mui/icons-material/LightMode';
 import SettingsIcon from '@mui/icons-material/Settings';
-import { useAtomValue } from 'jotai/index';
-import {
-  conversationsAtom,
-  isGlobalSettingsLoadedAtom,
-} from '../data/atoms.ts';
 import { useNavigate, useParams } from 'react-router';
 import type { RouteParams } from '../routes/route-params.ts';
 import { getAuth, signOut } from 'firebase/auth';
+import { useGetConversations } from '../data/conversations/use-get-conversations.ts';
 
 const drawerWidth = 240;
 
@@ -62,8 +58,7 @@ export const AppLayout = ({ children, onSettingsClick }: AppLayoutProps) => {
 
   const colorScheme = useColorScheme();
 
-  const conversations = useAtomValue(conversationsAtom);
-  const isGlobalSettingsLoaded = useAtomValue(isGlobalSettingsLoadedAtom);
+  const conversations = useGetConversations();
 
   const navigate = useNavigate();
   const params = useParams<RouteParams>();
@@ -168,11 +163,9 @@ export const AppLayout = ({ children, onSettingsClick }: AppLayoutProps) => {
               </Tooltip>
             )}
           </IconButton>
-          {isGlobalSettingsLoaded ? (
-            <IconButton color="inherit" onClick={onSettingsClick}>
-              <SettingsIcon />
-            </IconButton>
-          ) : null}
+          <IconButton color="inherit" onClick={onSettingsClick}>
+            <SettingsIcon />
+          </IconButton>
         </Box>
         {children}
       </Main>

@@ -26,8 +26,8 @@ import { doc, collection, addDoc, updateDoc, getDoc } from 'firebase/firestore';
 import { conversationConverter } from '../converters/conversation-converter.ts';
 import { globalSettings } from '../data/global-settings.ts';
 import type { RouteParams } from '../routes/route-params.ts';
-import { useConversations } from '../data/use-conversations.ts';
-import { useCurrentConversation } from '../data/use-current-conversation.ts';
+import { useConversations } from '../data/conversations/use-conversations.ts';
+import { useCurrentConversation } from '../data/conversations/use-current-conversation.ts';
 
 type ChatSettingsProps = {
   isOpen: boolean;
