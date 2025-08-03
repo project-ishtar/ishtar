@@ -2,8 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
 import { firebaseApp } from '../firebase';
 import { AuthContext } from './auth-context';
-import CircularProgress from '@mui/material/CircularProgress';
-import Box from '@mui/material/Box';
+import { LoadingSpinner } from '../components/loading-spinner.tsx';
 
 type AuthProviderProps = {
   children: React.ReactNode;
@@ -24,20 +23,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   return (
     <AuthContext.Provider value={{ isAuthenticated, isLoading }}>
-      {!isAuthenticated && isLoading ? (
-        <Box
-          sx={{
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            minHeight: '100vh',
-          }}
-        >
-          <CircularProgress size={100} />
-        </Box>
-      ) : (
-        children
-      )}
+      {!isAuthenticated && isLoading ? <LoadingSpinner /> : children}
     </AuthContext.Provider>
   );
 };

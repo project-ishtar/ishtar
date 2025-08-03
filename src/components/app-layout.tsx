@@ -8,8 +8,15 @@ import MenuIcon from '@mui/icons-material/Menu';
 import ListItem from '@mui/material/ListItem';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemText from '@mui/material/ListItemText';
-import { Tooltip, useColorScheme, useMediaQuery } from '@mui/material';
+import {
+  ListItemIcon,
+  Tooltip,
+  useColorScheme,
+  useMediaQuery,
+} from '@mui/material';
 import DarkModeIcon from '@mui/icons-material/DarkMode';
+import EditSquareIcon from '@mui/icons-material/EditSquare';
+import LogoutIcon from '@mui/icons-material/Logout';
 import LightModeIcon from '@mui/icons-material/LightMode';
 import SettingsIcon from '@mui/icons-material/Settings';
 import { useAtomValue } from 'jotai/index';
@@ -19,6 +26,7 @@ import {
 } from '../data/atoms.ts';
 import { useNavigate, useParams } from 'react-router';
 import type { RouteParams } from '../routes/route-params.ts';
+import { getAuth, signOut } from 'firebase/auth';
 
 const drawerWidth = 240;
 
@@ -28,11 +36,8 @@ const Main = styled('main', { shouldForwardProp: (prop) => prop !== 'open' })<{
 }>(({ theme, open }) => ({
   flexGrow: 1,
   padding: theme.spacing(3),
-  transition: theme.transitions.create('margin', {
-    /* ... */
-  }),
+  transition: theme.transitions.create('margin', {}),
   marginLeft: `-${drawerWidth}px`,
-  // Add these three lines
   display: 'flex',
   flexDirection: 'column',
   minHeight: '100vh',
@@ -71,32 +76,14 @@ export const AppLayout = ({ children, onSettingsClick }: AppLayoutProps) => {
     setDrawerOpen(!isDrawerOpen);
   };
 
-  const drawerContent = (
-    <Box sx={{ p: 1 }}>
-      <List>
-        <ListItem>
-          <ListItemButton>
-            <ListItemText primary="New Chat" />
-          </ListItemButton>
-        </ListItem>
-        {conversations.map((conversation) => (
-          <ListItem key={conversation.id}>
-            <ListItemButton
-              onClick={() => navigate(`/app/${conversation.id}`)}
-              selected={conversation.id === params.conversationId}
-            >
-              <ListItemText primary={conversation.title} />
-            </ListItemButton>
-          </ListItem>
-        ))}
-      </List>
-    </Box>
-  );
+  const logout = () => {
+    signOut(getAuth());
+  };
 
   return (
     <Box sx={{ display: 'flex' }}>
       <Drawer
-        variant="persistent" // Persistent is best for this effect
+        variant="persistent"
         open={isDrawerOpen}
         sx={{
           width: drawerWidth,
@@ -104,14 +91,55 @@ export const AppLayout = ({ children, onSettingsClick }: AppLayoutProps) => {
           '& .MuiDrawer-paper': {
             width: drawerWidth,
             boxSizing: 'border-box',
+            display: 'flex',
+            flexDirection: 'column',
           },
         }}
       >
-        {drawerContent}
+        <Box>
+          <List>
+            <ListItem>
+              <ListItemButton
+                onClick={() => navigate('/app')}
+                disabled={!params.conversationId}
+              >
+                <ListItemIcon>
+                  <EditSquareIcon />
+                </ListItemIcon>
+                <ListItemText primary="New Chat" />
+              </ListItemButton>
+            </ListItem>
+          </List>
+        </Box>
+        <Box sx={{ flexGrow: 1, overflowY: 'auto' }}>
+          <List>
+            {conversations.map((conversation) => (
+              <ListItem key={conversation.id}>
+                <ListItemButton
+                  onClick={() => navigate(`/app/${conversation.id}`)}
+                  selected={conversation.id === params.conversationId}
+                >
+                  <ListItemText primary={conversation.title} />
+                </ListItemButton>
+              </ListItem>
+            ))}
+          </List>
+        </Box>
+        <Box sx={{ borderTop: 1, borderColor: 'divider' }}>
+          <List>
+            <ListItem>
+              <ListItemButton onClick={logout}>
+                <ListItemIcon>
+                  <LogoutIcon />
+                </ListItemIcon>
+                <ListItemText primary="Logout" />
+              </ListItemButton>
+            </ListItem>
+          </List>
+        </Box>
       </Drawer>
 
       <Main open={isDrawerOpen}>
-        {/* The toggle button is now at the top of the main content */}
         <Box sx={{ display: 'flex', alignItems: 'center', p: 1 }}>
           <IconButton
             color="inherit"
@@ -122,7 +150,6 @@ export const AppLayout = ({ children, onSettingsClick }: AppLayoutProps) => {
             <MenuIcon />
           </IconButton>
           <Box sx={{ flexGrow: 1 }} />{' '}
-          {/* This spacer pushes the next items to the right */}
           <IconButton
             color="inherit"
             onClick={() =>
