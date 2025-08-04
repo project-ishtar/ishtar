@@ -32,7 +32,7 @@ export const AiContent = (): JSX.Element => {
   const theme = useTheme();
   const isSmallBreakpoint = useMediaQuery(theme.breakpoints.down('md'));
 
-  const params = useParams<RouteParams>();
+  const { conversationId } = useParams<RouteParams>();
   const navigate = useNavigate();
 
   const { fetchAndAppendConversation } = useConversations();
@@ -62,30 +62,29 @@ export const AiContent = (): JSX.Element => {
 
   const onSubmit = useCallback(async () => {
     if (prompt) {
-      setPrompt('');
       setIsPromptSubmitted(true);
 
-      await setChatContent({ id: uuid(), text: prompt, role: 'user' });
+      if (conversationId) {
+        setPrompt('');
+        await setChatContent({ id: uuid(), text: prompt, role: 'user' });
+      }
 
       const response = await getAiResponse({
         prompt,
-        conversationId: params.conversationId,
+        conversationId: conversationId,
       });
 
       if (response) {
-        await setChatContent({
-          id: response.id,
-          role: 'model',
-          text: response.response ?? '',
-        });
+        if (conversationId) {
+          await setChatContent({
+            id: response.id,
+            role: 'model',
+            text: response.response ?? '',
+          });
 
-        setTotalTokenCount(response.tokenCount);
-
-        if (params.conversationId !== response.conversationId) {
+          setTotalTokenCount(response.tokenCount);
+        } else if (response.conversationId) {
           await fetchAndAppendConversation(response.conversationId);
-        }
-
-        if (params.conversationId !== response.conversationId) {
           navigate(`/app/${response.conversationId}`);
         }
       }
@@ -95,7 +94,7 @@ export const AiContent = (): JSX.Element => {
   }, [
     fetchAndAppendConversation,
     navigate,
-    params.conversationId,
+    conversationId,
     prompt,
     setChatContent,
   ]);
