@@ -135,7 +135,14 @@ export const AppLayout = ({ children, onSettingsClick }: AppLayoutProps) => {
       </Drawer>
 
       <Main open={isDrawerOpen}>
-        <Box sx={{ display: 'flex', alignItems: 'center', p: 1 }}>
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            p: 1,
+            position: 'sticky',
+          }}
+        >
           <IconButton
             color="inherit"
             aria-label="open drawer"

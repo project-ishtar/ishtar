@@ -22,11 +22,11 @@ import type {
 } from '@ishtar/commons/types';
 import { useNavigate, useParams } from 'react-router';
 import { firebaseApp } from '../firebase';
-import { doc, collection, addDoc, updateDoc, getDoc } from 'firebase/firestore';
+import { doc, collection, addDoc, updateDoc } from 'firebase/firestore';
 import { conversationConverter } from '../converters/conversation-converter.ts';
 import { getGlobalSettings } from '../data/global-settings.ts';
 import type { RouteParams } from '../routes/route-params.ts';
-import { useConversations } from '../data/conversations/use-conversations.ts';
+import { useRefreshConversations } from '../data/conversations/use-refresh-conversations.ts';
 import { useCurrentConversation } from '../data/conversations/use-current-conversation.ts';
 import { useGetCurrentUser } from '../data/current-user/use-get-current-user.ts';
 
@@ -51,7 +51,7 @@ export const ChatSettings = ({ isOpen, onClose }: ChatSettingsProps) => {
   );
 
   const conversation = useCurrentConversation();
-  const { addConversation, updateConversation } = useConversations();
+  const refreshConversations = useRefreshConversations();
 
   useEffect(() => {
     const currentUserId = firebaseApp.auth?.currentUser?.uid;
@@ -115,10 +115,7 @@ export const ChatSettings = ({ isOpen, onClose }: ChatSettingsProps) => {
           newConversation,
         );
 
-        const newDocSnapshot = await getDoc(newDocRef);
-        const fetchedNewConversation = newDocSnapshot.data() as Conversation;
-
-        addConversation(fetchedNewConversation);
+        refreshConversations();
 
         navigate(`/app/${newDocRef.id}`);
       } else {
@@ -143,21 +140,20 @@ export const ChatSettings = ({ isOpen, onClose }: ChatSettingsProps) => {
           convoToUpdate,
         );
 
-        updateConversation(conversationId, convoToUpdate);
+        refreshConversations();
       }
 
       onClose();
     }
   }, [
-    addConversation,
     chatTitle,
     model,
     navigate,
     onClose,
     params.conversationId,
+    refreshConversations,
     systemInstruction,
     temperature,
-    updateConversation,
   ]);
 
   if (isLoading) return null;

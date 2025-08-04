@@ -17,14 +17,14 @@ import LoadingButton from '@mui/lab/LoadingButton';
 import type { ChatContent } from '@ishtar/commons/types';
 import { useParams, useNavigate } from 'react-router';
 import type { RouteParams } from '../routes/route-params.ts';
-import { useConversations } from '../data/conversations/use-conversations.ts';
+import { useRefreshConversations } from '../data/conversations/use-refresh-conversations.ts';
 import { useChatContents } from '../data/messages/use-chat-contents.ts';
 import { v4 as uuid } from 'uuid';
 import { chatContentsWriteAtom } from '../data/messages/chat-contents-atoms.ts';
+import { useCurrentConversation } from '../data/conversations/use-current-conversation.ts';
 
 export const AiContent = (): JSX.Element => {
   const [prompt, setPrompt] = useState<string>();
-  const [totalTokenCount, setTotalTokenCount] = useState<number>();
   const [isPromptSubmitted, setIsPromptSubmitted] = useState(false);
 
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -35,8 +35,15 @@ export const AiContent = (): JSX.Element => {
   const { conversationId } = useParams<RouteParams>();
   const navigate = useNavigate();
 
-  const { fetchAndAppendConversation } = useConversations();
+  const refreshConversations = useRefreshConversations();
   const [chatContents, setChatContent] = useChatContents();
+
+  const conversation = useCurrentConversation();
+
+  const [tokenCount, setTokenCount] = useState({
+    inputTokenCount: conversation?.inputTokenCount ?? 0,
+    outputTokenCount: conversation?.outputTokenCount ?? 0,
+  });
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
@@ -49,7 +56,10 @@ export const AiContent = (): JSX.Element => {
 
   useEffect(() => {
     if (lastChatContentId) {
-      messagesEndRef.current?.scrollIntoView();
+      messagesEndRef.current?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      });
     }
   }, [lastChatContentId]);
 
@@ -82,22 +92,21 @@ export const AiContent = (): JSX.Element => {
             text: response.response ?? '',
           });
 
-          setTotalTokenCount(response.tokenCount);
+          setTokenCount((prevCount) => ({
+            inputTokenCount:
+              prevCount.inputTokenCount + (response.inputTokenCount ?? 0),
+            outputTokenCount:
+              prevCount.outputTokenCount + (response.outputTokenCount ?? 0),
+          }));
         } else if (response.conversationId) {
-          await fetchAndAppendConversation(response.conversationId);
+          refreshConversations();
           navigate(`/app/${response.conversationId}`);
         }
       }
     }
 
     setIsPromptSubmitted(false);
-  }, [
-    fetchAndAppendConversation,
-    navigate,
-    conversationId,
-    prompt,
-    setChatContent,
-  ]);
+  }, [conversationId, navigate, prompt, refreshConversations, setChatContent]);
 
   const onInputKeyDown = useCallback(
     (event: React.KeyboardEvent) => {
@@ -217,12 +226,10 @@ export const AiContent = (): JSX.Element => {
             <SendIcon />
           </LoadingButton>
         </Box>
-        <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-          {totalTokenCount ? (
-            <Typography variant="caption">
-              {`${totalTokenCount} tokens used`}
-            </Typography>
-          ) : null}
+        <Box sx={{ display: 'flex', justifyContent: 'flex-start' }}>
+          <Typography variant="caption">
+            {`${tokenCount.inputTokenCount} input tokens and ${tokenCount.outputTokenCount} output tokens consumed.`}
+          </Typography>
         </Box>
       </Box>
     </Container>

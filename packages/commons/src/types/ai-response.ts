@@ -1,6 +1,7 @@
 export type AiResponse = {
   id: string;
   response?: string;
-  tokenCount?: number;
+  inputTokenCount?: number;
+  outputTokenCount?: number;
   conversationId: string;
 };

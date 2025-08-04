@@ -1,19 +1,15 @@
 import { firebaseApp } from '../../firebase.ts';
-import { atomWithLazy, loadable } from 'jotai/utils';
+import { loadable } from 'jotai/utils';
 import { doc, getDoc } from 'firebase/firestore';
 import { userConverter } from '../../converters/user-converter.ts';
 import type { User } from '@ishtar/commons/types';
 import { atom } from 'jotai';
 
-const fetchCurrentUser = async () => {
-  const currentUserId = firebaseApp.auth.currentUser?.uid;
-
-  if (!currentUserId) throw new Error('Current user ID not found');
-
+const fetchCurrentUser = async (currentUserUid: string) => {
   const userRef = doc(
     firebaseApp.firestore,
     'users',
-    currentUserId,
+    currentUserUid,
   ).withConverter(userConverter);
 
   const userSnapshot = await getDoc(userRef);
@@ -25,16 +21,20 @@ const fetchCurrentUser = async () => {
   return userSnapshot.data() as User;
 };
 
-const userLazyAtom = atomWithLazy(fetchCurrentUser);
-const loadableUser = loadable(userLazyAtom);
+export const currentUserUidAtom = atom<string | null>(null);
 
-export const currentUserIdAtom = atomWithLazy(
-  () => firebaseApp.auth.currentUser!.uid!,
-);
+const userLazyAtom = atom(async (get) => {
+  const currentUserUid = get(currentUserUidAtom);
+  return currentUserUid ? await fetchCurrentUser(currentUserUid) : null;
+});
+
+const loadableUser = loadable(userLazyAtom);
 
 export const userStatusAtom = atom((get) => get(loadableUser).state);
 
 export const userAtom = atom((get): User => {
   const atomValue = get(loadableUser);
-  return atomValue.state !== 'hasData' ? ({} as User) : atomValue.data;
+  return atomValue.state !== 'hasData'
+    ? ({} as User)
+    : ((atomValue.data ?? {}) as User);
 });
