@@ -36,6 +36,7 @@ export const App = () => {
         <AiContent key={params.conversationId} />
       </AppLayout>
       <ChatSettings
+        key={params.conversationId}
         isOpen={isSettingsOpen}
         onClose={() => setSettingsOpen(false)}
       />
