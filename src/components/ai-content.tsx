@@ -1,4 +1,10 @@
-import React, { type JSX, useCallback, useRef, useState } from 'react';
+import React, {
+  type JSX,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 import { getAiResponse } from '../ai.ts';
 import Markdown from 'react-markdown';
 import TextField from '@mui/material/TextField';
@@ -8,15 +14,17 @@ import { Container, useMediaQuery, useTheme } from '@mui/material';
 import CircularProgress from '@mui/material/CircularProgress';
 import SendIcon from '@mui/icons-material/Send';
 import LoadingButton from '@mui/lab/LoadingButton';
-import type { AiResponse } from '@ishtar/commons/types';
+import type { ChatContent } from '@ishtar/commons/types';
 import { useParams, useNavigate } from 'react-router';
 import type { RouteParams } from '../routes/route-params.ts';
 import { useConversations } from '../data/conversations/use-conversations.ts';
+import { useChatContents } from '../data/messages/use-chat-contents.ts';
+import { v4 as uuid } from 'uuid';
+import { chatContentsWriteAtom } from '../data/messages/chat-contents-atoms.ts';
 
 export const AiContent = (): JSX.Element => {
   const [prompt, setPrompt] = useState<string>();
-  const [response, setResponse] = useState<AiResponse>();
-
+  const [totalTokenCount, setTotalTokenCount] = useState<number>();
   const [isPromptSubmitted, setIsPromptSubmitted] = useState(false);
 
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -28,8 +36,22 @@ export const AiContent = (): JSX.Element => {
   const navigate = useNavigate();
 
   const { fetchAndAppendConversation } = useConversations();
+  const [chatContents, setChatContent] = useChatContents();
+
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+
+  const lastChatContentId =
+    chatContents.length > 0
+      ? chatContents[chatContentsWriteAtom.length - 1].id
+      : undefined;
 
   const shouldSubmitButtonBeDisabled = !prompt || isPromptSubmitted;
+
+  useEffect(() => {
+    if (lastChatContentId) {
+      messagesEndRef.current?.scrollIntoView();
+    }
+  }, [lastChatContentId]);
 
   const onPromptChange = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -40,7 +62,10 @@ export const AiContent = (): JSX.Element => {
 
   const onSubmit = useCallback(async () => {
     if (prompt) {
+      setPrompt('');
       setIsPromptSubmitted(true);
+
+      await setChatContent({ id: uuid(), text: prompt, role: 'user' });
 
       const response = await getAiResponse({
         prompt,
@@ -48,18 +73,17 @@ export const AiContent = (): JSX.Element => {
       });
 
       if (response) {
+        await setChatContent({
+          id: response.id,
+          role: 'model',
+          text: response.response ?? '',
+        });
+
+        setTotalTokenCount(response.tokenCount);
+
         if (params.conversationId !== response.conversationId) {
           await fetchAndAppendConversation(response.conversationId);
         }
-
-        setResponse({
-          id: response.id,
-          response: response.response,
-          tokenCount: response.tokenCount,
-          conversationId: response.conversationId,
-        });
-
-        setPrompt('');
 
         if (params.conversationId !== response.conversationId) {
           navigate(`/app/${response.conversationId}`);
@@ -68,7 +92,13 @@ export const AiContent = (): JSX.Element => {
     }
 
     setIsPromptSubmitted(false);
-  }, [fetchAndAppendConversation, navigate, params.conversationId, prompt]);
+  }, [
+    fetchAndAppendConversation,
+    navigate,
+    params.conversationId,
+    prompt,
+    setChatContent,
+  ]);
 
   const onInputKeyDown = useCallback(
     (event: React.KeyboardEvent) => {
@@ -91,24 +121,62 @@ export const AiContent = (): JSX.Element => {
         flexGrow: 1,
         display: 'flex',
         flexDirection: 'column',
-        justifyContent: response?.response ? 'flex-end' : 'center',
       }}
     >
       <Box
         component="main"
         sx={{
           flexGrow: 1,
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: response?.response ? 'flex-end' : 'center',
+          overflowY: 'auto',
+          p: 2,
         }}
       >
-        {response?.response ? (
-          <Box>
-            <Markdown>{response.response}</Markdown>
-          </Box>
+        {chatContents.length > 0 ? (
+          chatContents.map((message: ChatContent) => (
+            <Box
+              key={message.id}
+              sx={{
+                display: 'flex',
+                justifyContent:
+                  message.role === 'user' ? 'flex-end' : 'flex-start',
+                mb: 2,
+              }}
+            >
+              <Box
+                sx={{
+                  p: 1.5,
+                  borderRadius: 2,
+                  maxWidth: '80%',
+                  bgcolor:
+                    message.role === 'user'
+                      ? 'primary.main'
+                      : 'background.default',
+                  color:
+                    message.role === 'user'
+                      ? 'primary.contrastText'
+                      : 'text.primary',
+                }}
+              >
+                {message.role === 'model' ? (
+                  <Markdown>{message.text}</Markdown>
+                ) : (
+                  <Typography sx={{ whiteSpace: 'pre-wrap' }}>
+                    {message.text}
+                  </Typography>
+                )}
+              </Box>
+            </Box>
+          ))
         ) : (
-          <Box sx={{ textAlign: 'center' }}>
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              height: '100%',
+              textAlign: 'center',
+            }}
+          >
             <Typography variant="h4" gutterBottom>
               How can I help you today?
             </Typography>
@@ -117,6 +185,7 @@ export const AiContent = (): JSX.Element => {
             </Typography>
           </Box>
         )}
+        <div ref={messagesEndRef} />
       </Box>
       <Box
         component="footer"
@@ -150,9 +219,9 @@ export const AiContent = (): JSX.Element => {
           </LoadingButton>
         </Box>
         <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-          {response?.tokenCount ? (
+          {totalTokenCount ? (
             <Typography variant="caption">
-              {`${response.tokenCount} tokens used`}
+              {`${totalTokenCount} tokens used`}
             </Typography>
           ) : null}
         </Box>

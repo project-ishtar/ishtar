@@ -112,52 +112,58 @@ export const callAi = onCall<AiRequest>(
     >;
     const contents: Content[] = [];
 
-    if (conversation.summarizedMessageId) {
-      const summarizedMessageDoc = await messagesRef
-        .doc(conversation.summarizedMessageId)
-        .get();
-
-      messagesInOrderDoc = await messagesRef
-        .orderBy('timestamp', 'asc')
-        .orderBy(admin.firestore.FieldPath.documentId())
-        .startAt(summarizedMessageDoc)
-        .get();
-
-      const contentsArray = getContentsArray(messagesInOrderDoc);
-
-      const summaryContent = contentsArray[0];
-      const contentsAfterSummary = contentsArray.splice(1);
-
-      contents.push(summaryContent);
-
-      const previousMessagesInOrderSnapshot = await messagesRef
-        .orderBy('timestamp', 'desc')
-        .orderBy(admin.firestore.FieldPath.documentId())
-        .startAfter(summarizedMessageDoc)
-        .limit(10)
-        .get();
-
-      contents.push(
-        ...getContentsArray(previousMessagesInOrderSnapshot).reverse(),
-      );
-
-      contents.push(...contentsAfterSummary);
-    } else {
-      messagesInOrderDoc = await messagesRef.orderBy('timestamp', 'asc').get();
-
-      contents.push(...getContentsArray(messagesInOrderDoc));
-    }
-
-    contents.push({ role: 'user', parts: [{ text: prompt }] });
-
-    const batch = db.batch();
-
     const model =
       conversation?.chatSettings?.model ?? globalSettings.defaultGeminiModel;
 
     if (!model) {
       throw new HttpsError('permission-denied', 'No AI model available.');
     }
+
+    if (model !== 'gemini-2.0-flash' && model !== 'gemini-2.0-flash-lite') {
+      if (conversation.summarizedMessageId) {
+        const summarizedMessageDoc = await messagesRef
+          .doc(conversation.summarizedMessageId)
+          .get();
+
+        messagesInOrderDoc = await messagesRef
+          .orderBy('timestamp', 'asc')
+          .orderBy(admin.firestore.FieldPath.documentId())
+          .startAt(summarizedMessageDoc)
+          .get();
+
+        const contentsArray = getContentsArray(messagesInOrderDoc);
+
+        const summaryContent = contentsArray[0];
+        const contentsAfterSummary = contentsArray.splice(1);
+
+        contents.push(summaryContent);
+
+        const previousMessagesInOrderSnapshot = await messagesRef
+          .orderBy('timestamp', 'desc')
+          .orderBy(admin.firestore.FieldPath.documentId())
+          .startAfter(summarizedMessageDoc)
+          .limit(10)
+          .get();
+
+        contents.push(
+          ...getContentsArray(previousMessagesInOrderSnapshot).reverse(),
+        );
+
+        contents.push(...contentsAfterSummary);
+      } else {
+        messagesInOrderDoc = await messagesRef
+          .orderBy('timestamp', 'asc')
+          .get();
+
+        contents.push(...getContentsArray(messagesInOrderDoc));
+      }
+    }
+
+    contents.push({ role: 'user', parts: [{ text: prompt }] });
+
+    console.log(`contents: ${contents.length}`);
+
+    const batch = db.batch();
 
     const newUserMessageRef = messagesRef.doc();
 
