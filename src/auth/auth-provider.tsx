@@ -3,8 +3,6 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { firebaseApp } from '../firebase';
 import { AuthContext } from './auth-context';
 import { LoadingSpinner } from '../components/loading-spinner.tsx';
-import { useSetAtom } from 'jotai/index';
-import { currentUserUidAtom } from '../data/current-user/current-user-atom.ts';
 
 type AuthProviderProps = {
   children: ReactNode;
@@ -13,8 +11,7 @@ type AuthProviderProps = {
 export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-
-  const setCurrentUserUid = useSetAtom(currentUserUidAtom);
+  const [currentUserUid, setCurrentUserUid] = useState('');
 
   const auth = useRef(firebaseApp.auth);
 
@@ -27,10 +24,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         setCurrentUserUid(user.uid);
       }
     });
-  }, [setCurrentUserUid]);
+  }, []);
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, isLoading }}>
+    <AuthContext.Provider
+      value={{ isAuthenticated, isLoading, currentUserUid }}
+    >
       {!isAuthenticated && isLoading ? <LoadingSpinner /> : children}
     </AuthContext.Provider>
   );

@@ -1,5 +1,3 @@
-import { atomFamily, atomWithLazy, unwrap } from 'jotai/utils';
-import { atom } from 'jotai';
 import type { ChatContent, Message } from '@ishtar/commons/types';
 import { firebaseApp } from '../../firebase.ts';
 import {
@@ -13,18 +11,17 @@ import {
 } from 'firebase/firestore';
 import { messageConverter } from '../../converters/message-converter.ts';
 
-const fetchMessages = async (conversationId: string | undefined) => {
-  const currentUserId = firebaseApp.auth.currentUser?.uid;
-
-  if (!currentUserId) throw new Error('Current user ID not found');
-
+export const fetchMessages = async (
+  currentUserUid: string,
+  conversationId: string | undefined,
+) => {
   if (!conversationId) return [];
 
   const messagesRef = query(
     collection(
       firebaseApp.firestore,
       'users',
-      currentUserId,
+      currentUserUid,
       'conversations',
       conversationId,
       'messages',
@@ -51,20 +48,5 @@ const fetchMessages = async (conversationId: string | undefined) => {
     .reverse();
 };
 
-export const messagesLazyAtomFamily = atomFamily((conversationId: string) =>
-  atomWithLazy(async () => fetchMessages(conversationId)),
-);
-
-export const unwrappedMessagesReadAtom = atomFamily((conversationId: string) =>
-  unwrap(messagesLazyAtomFamily(conversationId), (prev) => prev ?? []),
-);
-
-export const chatContentsWriteAtom = atomFamily((conversationId: string) =>
-  atom(null, async (get, set, chatContent: ChatContent) => {
-    const chatContents = await get(messagesLazyAtomFamily(conversationId));
-    set(
-      messagesLazyAtomFamily(conversationId),
-      Promise.resolve([...chatContents, chatContent].slice(-30)),
-    );
-  }),
-);
+export const updateMessage = (chatContent: ChatContent): Promise<ChatContent> =>
+  Promise.resolve(chatContent);

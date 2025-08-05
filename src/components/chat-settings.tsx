@@ -19,6 +19,7 @@ import type {
   Conversation,
   DraftConversation,
   GeminiModel,
+  User,
 } from '@ishtar/commons/types';
 import { useNavigate, useParams } from 'react-router';
 import { firebaseApp } from '../firebase';
@@ -26,20 +27,24 @@ import { doc, collection, addDoc, updateDoc } from 'firebase/firestore';
 import { conversationConverter } from '../converters/conversation-converter.ts';
 import { getGlobalSettings } from '../data/global-settings.ts';
 import type { RouteParams } from '../routes/route-params.ts';
-import { useRefreshConversations } from '../data/conversations/use-refresh-conversations.ts';
 import { useCurrentConversation } from '../data/conversations/use-current-conversation.ts';
-import { useGetCurrentUser } from '../data/current-user/use-get-current-user.ts';
+import { useQueryClient } from '@tanstack/react-query';
+import { conversationsQueryKey } from '../data/conversations/conversations-functions.ts';
 
 type ChatSettingsProps = {
+  currentUser: User;
   isOpen: boolean;
   onClose: () => void;
 };
 
-export const ChatSettings = ({ isOpen, onClose }: ChatSettingsProps) => {
+export const ChatSettings = ({
+  isOpen,
+  onClose,
+  currentUser,
+}: ChatSettingsProps) => {
   const params = useParams<RouteParams>();
   const navigate = useNavigate();
 
-  const currentUser = useGetCurrentUser();
   const globalSettings = getGlobalSettings(currentUser.role);
 
   const [isLoading, setLoading] = useState(true);
@@ -51,7 +56,8 @@ export const ChatSettings = ({ isOpen, onClose }: ChatSettingsProps) => {
   );
 
   const conversation = useCurrentConversation();
-  const refreshConversations = useRefreshConversations();
+
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     const currentUserId = firebaseApp.auth?.currentUser?.uid;
@@ -115,7 +121,9 @@ export const ChatSettings = ({ isOpen, onClose }: ChatSettingsProps) => {
           newConversation,
         );
 
-        refreshConversations();
+        await queryClient.invalidateQueries({
+          queryKey: conversationsQueryKey(currentUser.id),
+        });
 
         navigate(`/app/${newDocRef.id}`);
       } else {
@@ -140,18 +148,21 @@ export const ChatSettings = ({ isOpen, onClose }: ChatSettingsProps) => {
           convoToUpdate,
         );
 
-        refreshConversations();
+        await queryClient.invalidateQueries({
+          queryKey: conversationsQueryKey(currentUser.id),
+        });
       }
 
       onClose();
     }
   }, [
     chatTitle,
+    currentUser.id,
     model,
     navigate,
     onClose,
     params.conversationId,
-    refreshConversations,
+    queryClient,
     systemInstruction,
     temperature,
   ]);
