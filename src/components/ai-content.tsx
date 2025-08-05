@@ -1,10 +1,4 @@
-import React, {
-  type JSX,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from 'react';
+import React, { type JSX, useCallback, useMemo, useRef, useState } from 'react';
 import { getAiResponse } from '../ai.ts';
 import Markdown from 'react-markdown';
 import TextField from '@mui/material/TextField';
@@ -15,13 +9,17 @@ import CircularProgress from '@mui/material/CircularProgress';
 import SendIcon from '@mui/icons-material/Send';
 import LoadingButton from '@mui/lab/LoadingButton';
 import type { ChatContent } from '@ishtar/commons/types';
-import { useParams, useNavigate } from 'react-router';
+import { useParams } from 'react-router';
 import type { RouteParams } from '../routes/route-params.ts';
-import { useRefreshConversations } from '../data/conversations/use-refresh-conversations.ts';
-import { useChatContents } from '../data/messages/use-chat-contents.ts';
 import { v4 as uuid } from 'uuid';
-import { chatContentsWriteAtom } from '../data/messages/chat-contents-atoms.ts';
 import { useCurrentConversation } from '../data/conversations/use-current-conversation.ts';
+import { useAuth } from '../auth/use-auth.ts';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  fetchMessages,
+  updateMessage,
+} from '../data/messages/chat-contents-functions.ts';
+import { useConversationsMutation } from '../data/conversations/user-conversations-mutation.ts';
 
 export const AiContent = (): JSX.Element => {
   const [prompt, setPrompt] = useState<string>();
@@ -33,10 +31,30 @@ export const AiContent = (): JSX.Element => {
   const isSmallBreakpoint = useMediaQuery(theme.breakpoints.down('md'));
 
   const { conversationId } = useParams<RouteParams>();
-  const navigate = useNavigate();
+  const currentUserUid = useAuth().currentUserUid;
 
-  const refreshConversations = useRefreshConversations();
-  const [chatContents, setChatContent] = useChatContents();
+  const queryClient = useQueryClient();
+
+  const chatContentsQuery = useMemo(
+    () => [currentUserUid, 'messages', conversationId],
+    [conversationId, currentUserUid],
+  );
+
+  const { data: chatContents } = useQuery({
+    queryKey: chatContentsQuery,
+    queryFn: () => fetchMessages(currentUserUid, conversationId),
+  });
+
+  const messagesMutation = useMutation({
+    mutationFn: updateMessage,
+    onSuccess: (newMessage) => {
+      queryClient.setQueryData<ChatContent[]>(chatContentsQuery, (messages) =>
+        messages ? [...messages, newMessage] : [newMessage],
+      );
+    },
+  });
+
+  const conversationsMutation = useConversationsMutation();
 
   const conversation = useCurrentConversation();
 
@@ -47,21 +65,7 @@ export const AiContent = (): JSX.Element => {
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
-  const lastChatContentId =
-    chatContents.length > 0
-      ? chatContents[chatContentsWriteAtom.length - 1].id
-      : undefined;
-
   const shouldSubmitButtonBeDisabled = !prompt || isPromptSubmitted;
-
-  useEffect(() => {
-    if (lastChatContentId) {
-      messagesEndRef.current?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'center',
-      });
-    }
-  }, [lastChatContentId]);
 
   const onPromptChange = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -76,7 +80,7 @@ export const AiContent = (): JSX.Element => {
 
       if (conversationId) {
         setPrompt('');
-        await setChatContent({ id: uuid(), text: prompt, role: 'user' });
+        messagesMutation.mutate({ id: uuid(), text: prompt, role: 'user' });
       }
 
       const response = await getAiResponse({
@@ -86,7 +90,7 @@ export const AiContent = (): JSX.Element => {
 
       if (response) {
         if (conversationId) {
-          await setChatContent({
+          messagesMutation.mutate({
             id: response.id,
             role: 'model',
             text: response.response ?? '',
@@ -99,14 +103,22 @@ export const AiContent = (): JSX.Element => {
               prevCount.outputTokenCount + (response.outputTokenCount ?? 0),
           }));
         } else if (response.conversationId) {
-          refreshConversations();
-          navigate(`/app/${response.conversationId}`);
+          conversationsMutation.mutate({
+            currentUserUid,
+            conversationId: response.conversationId,
+          });
         }
       }
     }
 
     setIsPromptSubmitted(false);
-  }, [conversationId, navigate, prompt, refreshConversations, setChatContent]);
+  }, [
+    conversationId,
+    conversationsMutation,
+    currentUserUid,
+    messagesMutation,
+    prompt,
+  ]);
 
   const onInputKeyDown = useCallback(
     (event: React.KeyboardEvent) => {
@@ -139,8 +151,8 @@ export const AiContent = (): JSX.Element => {
           p: 2,
         }}
       >
-        {chatContents.length > 0 ? (
-          chatContents.map((message: ChatContent) => (
+        {chatContents?.length ? (
+          chatContents?.map((message: ChatContent) => (
             <Box
               key={message.id}
               sx={{

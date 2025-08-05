@@ -19,27 +19,33 @@ import type {
   Conversation,
   DraftConversation,
   GeminiModel,
+  User,
 } from '@ishtar/commons/types';
-import { useNavigate, useParams } from 'react-router';
+import { useParams } from 'react-router';
 import { firebaseApp } from '../firebase';
 import { doc, collection, addDoc, updateDoc } from 'firebase/firestore';
 import { conversationConverter } from '../converters/conversation-converter.ts';
 import { getGlobalSettings } from '../data/global-settings.ts';
 import type { RouteParams } from '../routes/route-params.ts';
-import { useRefreshConversations } from '../data/conversations/use-refresh-conversations.ts';
 import { useCurrentConversation } from '../data/conversations/use-current-conversation.ts';
-import { useGetCurrentUser } from '../data/current-user/use-get-current-user.ts';
+import { useConversationsMutation } from '../data/conversations/user-conversations-mutation.ts';
+import { useAuth } from '../auth/use-auth.ts';
 
 type ChatSettingsProps = {
+  currentUser: User;
   isOpen: boolean;
   onClose: () => void;
 };
 
-export const ChatSettings = ({ isOpen, onClose }: ChatSettingsProps) => {
+export const ChatSettings = ({
+  isOpen,
+  onClose,
+  currentUser,
+}: ChatSettingsProps) => {
   const params = useParams<RouteParams>();
-  const navigate = useNavigate();
 
-  const currentUser = useGetCurrentUser();
+  const currentUserUid = useAuth().currentUserUid;
+
   const globalSettings = getGlobalSettings(currentUser.role);
 
   const [isLoading, setLoading] = useState(true);
@@ -51,7 +57,10 @@ export const ChatSettings = ({ isOpen, onClose }: ChatSettingsProps) => {
   );
 
   const conversation = useCurrentConversation();
-  const refreshConversations = useRefreshConversations();
+
+  const conversationsMutation = useConversationsMutation({
+    onSettled: onClose,
+  });
 
   useEffect(() => {
     const currentUserId = firebaseApp.auth?.currentUser?.uid;
@@ -86,72 +95,67 @@ export const ChatSettings = ({ isOpen, onClose }: ChatSettingsProps) => {
   ]);
 
   const onSave = useCallback(async () => {
-    const currentUserId = firebaseApp.auth?.currentUser?.uid;
     const conversationId = params.conversationId;
 
-    if (currentUserId) {
-      if (!conversationId) {
-        const newConversation: DraftConversation = {
-          createdAt: new Date(),
-          lastUpdated: new Date(),
-          title: chatTitle,
-          isDeleted: false,
-          summarizedMessageId: null,
-          chatSettings: {
-            temperature,
-            model: model,
-            systemInstruction: systemInstruction ?? null,
-          },
-          inputTokenCount: 0,
-          outputTokenCount: 0,
-        };
-        const newDocRef = await addDoc(
-          collection(
-            firebaseApp.firestore,
-            'users',
-            currentUserId,
-            'conversations',
-          ).withConverter(conversationConverter),
-          newConversation,
-        );
+    if (!conversationId) {
+      const newConversation: DraftConversation = {
+        createdAt: new Date(),
+        lastUpdated: new Date(),
+        title: chatTitle,
+        isDeleted: false,
+        summarizedMessageId: null,
+        chatSettings: {
+          temperature,
+          model: model,
+          systemInstruction: systemInstruction ?? null,
+        },
+        inputTokenCount: 0,
+        outputTokenCount: 0,
+      };
+      const newDocRef = await addDoc(
+        collection(
+          firebaseApp.firestore,
+          'users',
+          currentUserUid,
+          'conversations',
+        ).withConverter(conversationConverter),
+        newConversation,
+      );
 
-        refreshConversations();
+      conversationsMutation.mutate({
+        currentUserUid,
+        conversationId: newDocRef.id,
+      });
+    } else {
+      const convoToUpdate: Partial<Conversation> = {
+        lastUpdated: new Date(),
+        title: chatTitle,
+        chatSettings: {
+          temperature,
+          model: model,
+          systemInstruction: systemInstruction ?? null,
+        },
+      };
 
-        navigate(`/app/${newDocRef.id}`);
-      } else {
-        const convoToUpdate: Partial<Conversation> = {
-          lastUpdated: new Date(),
-          title: chatTitle,
-          chatSettings: {
-            temperature,
-            model: model,
-            systemInstruction: systemInstruction ?? null,
-          },
-        };
+      await updateDoc(
+        doc(
+          firebaseApp.firestore,
+          'users',
+          currentUserUid,
+          'conversations',
+          conversationId,
+        ).withConverter(conversationConverter),
+        convoToUpdate,
+      );
 
-        await updateDoc(
-          doc(
-            firebaseApp.firestore,
-            'users',
-            currentUserId,
-            'conversations',
-            conversationId,
-          ).withConverter(conversationConverter),
-          convoToUpdate,
-        );
-
-        refreshConversations();
-      }
-
-      onClose();
+      conversationsMutation.mutate({ currentUserUid, conversationId });
     }
   }, [
     chatTitle,
+    conversationsMutation,
+    currentUserUid,
     model,
-    navigate,
-    onClose,
     params.conversationId,
-    refreshConversations,
     systemInstruction,
     temperature,
   ]);
