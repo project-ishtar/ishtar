@@ -35,10 +35,13 @@ export const fetchConversations = async (currentUserUid: string) => {
   return conversationsArr;
 };
 
-export const fetchConversation = async (
-  currentUserUid: string,
-  conversationId: string,
-) => {
+export const fetchConversation = async ({
+  currentUserUid,
+  conversationId,
+}: {
+  currentUserUid: string;
+  conversationId: string;
+}) => {
   const conversationRef = doc(
     firebaseApp.firestore,
     'users',

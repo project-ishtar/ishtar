@@ -9,7 +9,7 @@ import CircularProgress from '@mui/material/CircularProgress';
 import SendIcon from '@mui/icons-material/Send';
 import LoadingButton from '@mui/lab/LoadingButton';
 import type { ChatContent } from '@ishtar/commons/types';
-import { useParams, useNavigate } from 'react-router';
+import { useParams } from 'react-router';
 import type { RouteParams } from '../routes/route-params.ts';
 import { v4 as uuid } from 'uuid';
 import { useCurrentConversation } from '../data/conversations/use-current-conversation.ts';
@@ -19,7 +19,7 @@ import {
   fetchMessages,
   updateMessage,
 } from '../data/messages/chat-contents-functions.ts';
-import { conversationsQueryKey } from '../data/conversations/conversations-functions.ts';
+import { useConversationsMutation } from '../data/conversations/user-conversations-mutation.ts';
 
 export const AiContent = (): JSX.Element => {
   const [prompt, setPrompt] = useState<string>();
@@ -31,7 +31,6 @@ export const AiContent = (): JSX.Element => {
   const isSmallBreakpoint = useMediaQuery(theme.breakpoints.down('md'));
 
   const { conversationId } = useParams<RouteParams>();
-  const navigate = useNavigate();
   const currentUserUid = useAuth().currentUserUid;
 
   const queryClient = useQueryClient();
@@ -46,7 +45,7 @@ export const AiContent = (): JSX.Element => {
     queryFn: () => fetchMessages(currentUserUid, conversationId),
   });
 
-  const mutation = useMutation({
+  const messagesMutation = useMutation({
     mutationFn: updateMessage,
     onSuccess: (newMessage) => {
       queryClient.setQueryData<ChatContent[]>(chatContentsQuery, (messages) =>
@@ -54,6 +53,8 @@ export const AiContent = (): JSX.Element => {
       );
     },
   });
+
+  const conversationsMutation = useConversationsMutation();
 
   const conversation = useCurrentConversation();
 
@@ -79,7 +80,7 @@ export const AiContent = (): JSX.Element => {
 
       if (conversationId) {
         setPrompt('');
-        mutation.mutate({ id: uuid(), text: prompt, role: 'user' });
+        messagesMutation.mutate({ id: uuid(), text: prompt, role: 'user' });
       }
 
       const response = await getAiResponse({
@@ -89,7 +90,7 @@ export const AiContent = (): JSX.Element => {
 
       if (response) {
         if (conversationId) {
-          mutation.mutate({
+          messagesMutation.mutate({
             id: response.id,
             role: 'model',
             text: response.response ?? '',
@@ -102,16 +103,22 @@ export const AiContent = (): JSX.Element => {
               prevCount.outputTokenCount + (response.outputTokenCount ?? 0),
           }));
         } else if (response.conversationId) {
-          await queryClient.invalidateQueries({
-            queryKey: conversationsQueryKey(currentUserUid),
+          conversationsMutation.mutate({
+            currentUserUid,
+            conversationId: response.conversationId,
           });
-          navigate(`/app/${response.conversationId}`);
         }
       }
     }
 
     setIsPromptSubmitted(false);
-  }, [conversationId, currentUserUid, mutation, navigate, prompt, queryClient]);
+  }, [
+    conversationId,
+    conversationsMutation,
+    currentUserUid,
+    messagesMutation,
+    prompt,
+  ]);
 
   const onInputKeyDown = useCallback(
     (event: React.KeyboardEvent) => {
