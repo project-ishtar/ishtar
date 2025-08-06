@@ -284,7 +284,9 @@ export const callAi = onCall<AiRequest>(
 
     console.log(`token count: ${tokenCount}`);
 
-    if (isChatModel && tokenCount >= 100000) {
+    const shouldSummarize = false;
+
+    if (isChatModel && shouldSummarize && tokenCount >= 100000) {
       console.log('summary');
       try {
         const summaryResponse = await generateSummary({
