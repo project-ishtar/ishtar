@@ -17,7 +17,7 @@ import {
   fetchMessages,
   updateMessage,
 } from '../data/messages/chat-contents-functions.ts';
-import { useConversationsMutation } from '../data/conversations/user-conversations-mutation.ts';
+import { useConversationsMutation } from '../data/conversations/use-conversations-mutation.ts';
 
 type AiContentProps = {
   conversationId?: string;

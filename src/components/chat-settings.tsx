@@ -26,7 +26,7 @@ import { doc, collection, addDoc, updateDoc } from 'firebase/firestore';
 import { conversationConverter } from '../converters/conversation-converter.ts';
 import { getGlobalSettings } from '../data/global-settings.ts';
 import { useCurrentConversation } from '../data/conversations/use-current-conversation.ts';
-import { useConversationsMutation } from '../data/conversations/user-conversations-mutation.ts';
+import { useConversationsMutation } from '../data/conversations/use-conversations-mutation.ts';
 import { useAuthenticated } from '../auth/use-auth.ts';
 
 type ChatSettingsProps = {
