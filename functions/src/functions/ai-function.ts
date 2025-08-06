@@ -191,7 +191,6 @@ export const callAi = onCall<AiRequest>(
 
     contents.push({ role: 'user', parts: [{ text: prompt }] });
 
-    console.log(`contents: ${JSON.stringify(contents)}`);
     console.log(`contents length: ${contents.length}`);
 
     const batch = db.batch();
