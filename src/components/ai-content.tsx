@@ -17,7 +17,8 @@ import {
   fetchMessages,
   updateMessage,
 } from '../data/messages/chat-contents-functions.ts';
-import { useConversationsMutation } from '../data/conversations/use-conversations-mutation.ts';
+import { useConversationsMutations } from '../data/conversations/use-conversations-mutations.ts';
+import { useNavigate } from '@tanstack/react-router';
 
 type AiContentProps = {
   conversationId?: string;
@@ -55,9 +56,10 @@ export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
     },
   });
 
-  const conversationsMutation = useConversationsMutation();
-
+  const { fetchAndSetConversation } = useConversationsMutations();
   const conversation = useCurrentConversation();
+
+  const navigate = useNavigate();
 
   const [tokenCount, setTokenCount] = useState({
     inputTokenCount: conversation?.inputTokenCount ?? 0,
@@ -104,9 +106,15 @@ export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
               prevCount.outputTokenCount + (response.outputTokenCount ?? 0),
           }));
         } else if (response.conversationId) {
-          conversationsMutation.mutate({
-            currentUserUid,
-            conversationId: response.conversationId,
+          await fetchAndSetConversation(response.conversationId, {
+            onSettled: (conversation) => {
+              if (conversation?.id) {
+                navigate({
+                  to: '/app/{-$conversationId}',
+                  params: { conversationId: conversation.id },
+                });
+              }
+            },
           });
         }
 
@@ -117,9 +125,9 @@ export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
     setIsPromptSubmitted(false);
   }, [
     conversationId,
-    conversationsMutation,
-    currentUserUid,
+    fetchAndSetConversation,
     messagesMutation,
+    navigate,
     prompt,
   ]);
 

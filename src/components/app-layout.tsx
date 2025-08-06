@@ -10,6 +10,8 @@ import ListItemButton from '@mui/material/ListItemButton';
 import ListItemText from '@mui/material/ListItemText';
 import {
   ListItemIcon,
+  Menu,
+  MenuItem,
   Tooltip,
   useColorScheme,
   useMediaQuery,
@@ -19,9 +21,12 @@ import EditSquareIcon from '@mui/icons-material/EditSquare';
 import LogoutIcon from '@mui/icons-material/Logout';
 import LightModeIcon from '@mui/icons-material/LightMode';
 import SettingsIcon from '@mui/icons-material/Settings';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
+import DeleteIcon from '@mui/icons-material/Delete';
 import { useGetConversations } from '../data/conversations/use-get-conversations.ts';
 import { useNavigate, useRouter } from '@tanstack/react-router';
 import { useAuthenticated } from '../auth/use-auth.ts';
+import { useConversationsMutations } from '../data/conversations/use-conversations-mutations.ts';
 
 const drawerWidth = 240;
 
@@ -59,17 +64,36 @@ export const AppLayout = ({
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   const [isDrawerOpen, setDrawerOpen] = useState(!isMobile);
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [selectedConversationId, setSelectedConversationId] = useState<
+    string | null
+  >(null);
 
   const colorScheme = useColorScheme();
   const conversations = useGetConversations();
-  const navigate = useNavigate();
 
   const router = useRouter();
+  const navigate = useNavigate();
+
+  const { deleteConversation } = useConversationsMutations();
+
   const { logout } = useAuthenticated();
 
   useEffect(() => {
     setDrawerOpen(!isMobile);
   }, [isMobile]);
+
+  const handleMenuOpen = useCallback(
+    (event: React.MouseEvent<HTMLElement>, id: string) => {
+      setAnchorEl(event.currentTarget);
+      setSelectedConversationId(id);
+    },
+    [],
+  );
+
+  const handleMenuClose = useCallback(() => {
+    setAnchorEl(null);
+  }, []);
 
   const signOut = useCallback(async () => {
     await logout();
@@ -79,6 +103,29 @@ export const AppLayout = ({
   const handleDrawerToggle = useCallback(() => {
     setDrawerOpen(!isDrawerOpen);
   }, [isDrawerOpen]);
+
+  const doDeleteConversation = useCallback(async () => {
+    if (selectedConversationId) {
+      await deleteConversation(selectedConversationId, {
+        onSettled: () => {
+          if (selectedConversationId === conversationId) {
+            navigate({
+              to: '/app/{-$conversationId}',
+              params: { conversationId: undefined },
+            });
+          }
+        },
+      });
+    }
+
+    handleMenuClose();
+  }, [
+    conversationId,
+    deleteConversation,
+    handleMenuClose,
+    navigate,
+    selectedConversationId,
+  ]);
 
   return (
     <Box sx={{ display: 'flex' }}>
@@ -119,7 +166,18 @@ export const AppLayout = ({
         <Box sx={{ flexGrow: 1, overflowY: 'auto' }}>
           <List>
             {conversations.map((conversation) => (
-              <ListItem key={conversation.id}>
+              <ListItem
+                key={conversation.id}
+                secondaryAction={
+                  <IconButton
+                    edge="end"
+                    aria-label="more options"
+                    onClick={(event) => handleMenuOpen(event, conversation.id)}
+                  >
+                    <MoreVertIcon />
+                  </IconButton>
+                }
+              >
                 <ListItemButton
                   onClick={() =>
                     navigate({
@@ -191,6 +249,18 @@ export const AppLayout = ({
         </Box>
         {children}
       </Main>
+      <Menu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={handleMenuClose}
+      >
+        <MenuItem onClick={doDeleteConversation} sx={{ color: 'error.main' }}>
+          <ListItemIcon>
+            <DeleteIcon fontSize="small" />
+          </ListItemIcon>
+          Delete
+        </MenuItem>
+      </Menu>
     </Box>
   );
 };

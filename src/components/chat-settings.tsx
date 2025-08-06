@@ -21,13 +21,10 @@ import type {
   GeminiModel,
   User,
 } from '@ishtar/commons/types';
-import { firebaseApp } from '../firebase';
-import { doc, collection, addDoc, updateDoc } from 'firebase/firestore';
-import { conversationConverter } from '../converters/conversation-converter.ts';
 import { getGlobalSettings } from '../data/global-settings.ts';
 import { useCurrentConversation } from '../data/conversations/use-current-conversation.ts';
-import { useConversationsMutation } from '../data/conversations/use-conversations-mutation.ts';
-import { useAuthenticated } from '../auth/use-auth.ts';
+import { useConversationsMutations } from '../data/conversations/use-conversations-mutations.ts';
+import { useNavigate } from '@tanstack/react-router';
 
 type ChatSettingsProps = {
   currentUser: User;
@@ -42,8 +39,6 @@ export const ChatSettings = ({
   currentUser,
   conversationId,
 }: ChatSettingsProps) => {
-  const currentUserUid = useAuthenticated().currentUserUid;
-
   const globalSettings = getGlobalSettings(currentUser.role);
 
   const [isLoading, setLoading] = useState(true);
@@ -56,9 +51,9 @@ export const ChatSettings = ({
 
   const conversation = useCurrentConversation();
 
-  const conversationsMutation = useConversationsMutation({
-    onSettled: onClose,
-  });
+  const { addConversation, updateConversation } = useConversationsMutations();
+
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (conversationId) {
@@ -105,19 +100,18 @@ export const ChatSettings = ({
         inputTokenCount: 0,
         outputTokenCount: 0,
       };
-      const newDocRef = await addDoc(
-        collection(
-          firebaseApp.firestore,
-          'users',
-          currentUserUid,
-          'conversations',
-        ).withConverter(conversationConverter),
-        newConversation,
-      );
 
-      conversationsMutation.mutate({
-        currentUserUid,
-        conversationId: newDocRef.id,
+      await addConversation(newConversation, {
+        onSettled: (conversation) => {
+          if (conversation?.id) {
+            navigate({
+              to: '/app/{-$conversationId}',
+              params: { conversationId: conversation.id },
+            });
+
+            onClose();
+          }
+        },
       });
     } else {
       const convoToUpdate: Partial<Conversation> = {
@@ -130,27 +124,29 @@ export const ChatSettings = ({
         },
       };
 
-      await updateDoc(
-        doc(
-          firebaseApp.firestore,
-          'users',
-          currentUserUid,
-          'conversations',
-          conversationId,
-        ).withConverter(conversationConverter),
-        convoToUpdate,
-      );
+      await updateConversation(conversationId, convoToUpdate, {
+        onSettled: (conversation) => {
+          if (conversation?.id) {
+            navigate({
+              to: '/app/{-$conversationId}',
+              params: { conversationId: conversation.id },
+            });
 
-      conversationsMutation.mutate({ currentUserUid, conversationId });
+            onClose();
+          }
+        },
+      });
     }
   }, [
+    addConversation,
     chatTitle,
     conversationId,
-    conversationsMutation,
-    currentUserUid,
     model,
+    navigate,
+    onClose,
     systemInstruction,
     temperature,
+    updateConversation,
   ]);
 
   if (isLoading) return null;
