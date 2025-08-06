@@ -118,7 +118,7 @@ export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
           });
         }
 
-        messagesEndRef.current?.scrollIntoView();
+        messagesEndRef.current?.scrollIntoView({ block: 'center' });
       }
     }
 
