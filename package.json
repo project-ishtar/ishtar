@@ -10,7 +10,7 @@
   "scripts": {
     "vite": "vite",
     "dev:ui": "npm run vite -- --host",
-    "kill-emulators": "fkill-cli :4000 :5001 :8080 :9099 :8085 :9199 --silent || true",
+    "kill-emulators": "npx fkill-cli :4000 :5001 :8080 :9099 :8085 :9199 --silent || true",
     "watch:functions": "npm run build:watch --prefix functions",
     "start:functionEmulator": "firebase emulators:start --only functions,firestore,auth --import=./firebase-data --export-on-exit",
     "dev": "npm run kill-emulators && npm-run-all --parallel dev:ui watch:functions start:functionEmulator",
@@ -28,17 +28,20 @@
     "@mui/styled-engine-sc": "^7.2.0",
     "@tanstack/react-query": "^5.84.1",
     "@tanstack/react-query-devtools": "^5.84.1",
+    "@tanstack/react-router": "^1.130.12",
+    "@tanstack/react-router-devtools": "^1.130.13",
     "firebase": "^12.0.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-markdown": "^10.1.0",
-    "react-router": "^7.7.1",
     "styled-components": "^6.1.19",
-    "uuid": "^11.1.0"
+    "uuid": "^11.1.0",
+    "zod": "^4.0.15"
   },
   "devDependencies": {
     "@eslint/js": "^9.30.1",
     "@tanstack/eslint-plugin-query": "^5.83.1",
+    "@tanstack/router-plugin": "^1.130.15",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^4.6.0",

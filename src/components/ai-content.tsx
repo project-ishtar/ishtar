@@ -9,11 +9,9 @@ import CircularProgress from '@mui/material/CircularProgress';
 import SendIcon from '@mui/icons-material/Send';
 import LoadingButton from '@mui/lab/LoadingButton';
 import type { ChatContent } from '@ishtar/commons/types';
-import { useParams } from 'react-router';
-import type { RouteParams } from '../routes/route-params.ts';
 import { v4 as uuid } from 'uuid';
 import { useCurrentConversation } from '../data/conversations/use-current-conversation.ts';
-import { useAuth } from '../auth/use-auth.ts';
+import { useAuthenticated } from '../auth/use-auth.ts';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   fetchMessages,
@@ -21,7 +19,11 @@ import {
 } from '../data/messages/chat-contents-functions.ts';
 import { useConversationsMutation } from '../data/conversations/user-conversations-mutation.ts';
 
-export const AiContent = (): JSX.Element => {
+type AiContentProps = {
+  conversationId?: string;
+};
+
+export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
   const [prompt, setPrompt] = useState<string>();
   const [isPromptSubmitted, setIsPromptSubmitted] = useState(false);
 
@@ -30,8 +32,7 @@ export const AiContent = (): JSX.Element => {
   const theme = useTheme();
   const isSmallBreakpoint = useMediaQuery(theme.breakpoints.down('md'));
 
-  const { conversationId } = useParams<RouteParams>();
-  const currentUserUid = useAuth().currentUserUid;
+  const currentUserUid = useAuthenticated().currentUserUid;
 
   const queryClient = useQueryClient();
 
@@ -108,6 +109,8 @@ export const AiContent = (): JSX.Element => {
             conversationId: response.conversationId,
           });
         }
+
+        messagesEndRef.current?.scrollIntoView();
       }
     }
 

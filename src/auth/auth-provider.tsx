@@ -1,8 +1,18 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { onAuthStateChanged } from 'firebase/auth';
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+  useCallback,
+} from 'react';
+import {
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  signOut,
+} from 'firebase/auth';
 import { firebaseApp } from '../firebase';
 import { AuthContext } from './auth-context';
-import { LoadingSpinner } from '../components/loading-spinner.tsx';
+import { flushSync } from 'react-dom';
 
 type AuthProviderProps = {
   children: ReactNode;
@@ -16,21 +26,57 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const auth = useRef(firebaseApp.auth);
 
   useEffect(() => {
-    onAuthStateChanged(auth.current, (user) => {
-      setIsLoading(false);
-      setIsAuthenticated(!!user);
+    const unsubscribe = onAuthStateChanged(auth.current, (user) => {
+      flushSync(() => {
+        setIsLoading(false);
 
-      if (user?.uid) {
-        setCurrentUserUid(user.uid);
-      }
+        if (user?.uid) {
+          setIsAuthenticated(!!user);
+          setCurrentUserUid(user.uid);
+        }
+      });
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const login = useCallback(async (email: string, password: string) => {
+    const user = await signInWithEmailAndPassword(
+      auth.current,
+      email,
+      password,
+    );
+
+    flushSync(() => {
+      setCurrentUserUid(user.user.uid);
+      setIsAuthenticated(true);
+    });
+  }, []);
+
+  const logout = useCallback(async () => {
+    await signOut(auth.current);
+
+    flushSync(() => {
+      setCurrentUserUid('');
+      setIsAuthenticated(false);
     });
   }, []);
 
   return (
     <AuthContext.Provider
-      value={{ isAuthenticated, isLoading, currentUserUid }}
+      value={
+        isAuthenticated
+          ? { isAuthenticated: true, isLoading, currentUserUid, login, logout }
+          : {
+              isAuthenticated: false,
+              isLoading,
+              currentUserUid: undefined,
+              login,
+              logout,
+            }
+      }
     >
-      {!isAuthenticated && isLoading ? <LoadingSpinner /> : children}
+      {children}
     </AuthContext.Provider>
   );
 };

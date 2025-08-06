@@ -1,20 +1,23 @@
-import React, { useCallback, useRef, useState } from 'react';
-import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
+import React, { useCallback, useState } from 'react';
 import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
 import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
+import { useRouter } from '@tanstack/react-router';
+import { useAuth } from '../auth/use-auth.ts';
 
 export const LoginPage = () => {
-  const auth = useRef(getAuth());
+  const router = useRouter();
+  const auth = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
   const signIn = useCallback(async () => {
-    await signInWithEmailAndPassword(auth.current, email, password);
-  }, [email, password]);
+    await auth.login(email, password);
+    await router.invalidate();
+  }, [auth, email, password, router]);
 
   const onEmailChange = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {

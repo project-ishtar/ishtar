@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode, useCallback } from 'react';
 import { styled, useTheme } from '@mui/material/styles';
 import Box from '@mui/material/Box';
 import Drawer from '@mui/material/Drawer';
@@ -19,10 +19,9 @@ import EditSquareIcon from '@mui/icons-material/EditSquare';
 import LogoutIcon from '@mui/icons-material/Logout';
 import LightModeIcon from '@mui/icons-material/LightMode';
 import SettingsIcon from '@mui/icons-material/Settings';
-import { useNavigate, useParams } from 'react-router';
-import type { RouteParams } from '../routes/route-params.ts';
-import { getAuth, signOut } from 'firebase/auth';
 import { useGetConversations } from '../data/conversations/use-get-conversations.ts';
+import { useNavigate, useRouter } from '@tanstack/react-router';
+import { useAuthenticated } from '../auth/use-auth.ts';
 
 const drawerWidth = 240;
 
@@ -48,32 +47,38 @@ const Main = styled('main', { shouldForwardProp: (prop) => prop !== 'open' })<{
 type AppLayoutProps = {
   children: ReactNode;
   onSettingsClick: () => void;
+  conversationId?: string;
 };
 
-export const AppLayout = ({ children, onSettingsClick }: AppLayoutProps) => {
+export const AppLayout = ({
+  children,
+  onSettingsClick,
+  conversationId,
+}: AppLayoutProps) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   const [isDrawerOpen, setDrawerOpen] = useState(!isMobile);
 
   const colorScheme = useColorScheme();
-
   const conversations = useGetConversations();
-
   const navigate = useNavigate();
-  const params = useParams<RouteParams>();
+
+  const router = useRouter();
+  const { logout } = useAuthenticated();
 
   useEffect(() => {
     setDrawerOpen(!isMobile);
   }, [isMobile]);
 
-  const handleDrawerToggle = () => {
-    setDrawerOpen(!isDrawerOpen);
-  };
+  const signOut = useCallback(async () => {
+    await logout();
+    await router.invalidate();
+  }, [logout, router]);
 
-  const logout = () => {
-    signOut(getAuth());
-  };
+  const handleDrawerToggle = useCallback(() => {
+    setDrawerOpen(!isDrawerOpen);
+  }, [isDrawerOpen]);
 
   return (
     <Box sx={{ display: 'flex' }}>
@@ -95,8 +100,13 @@ export const AppLayout = ({ children, onSettingsClick }: AppLayoutProps) => {
           <List>
             <ListItem>
               <ListItemButton
-                onClick={() => navigate('/app')}
-                disabled={!params.conversationId}
+                onClick={() =>
+                  navigate({
+                    to: '/app/{-$conversationId}',
+                    params: { conversationId: undefined },
+                  })
+                }
+                disabled={!conversationId}
               >
                 <ListItemIcon>
                   <EditSquareIcon />
@@ -111,8 +121,13 @@ export const AppLayout = ({ children, onSettingsClick }: AppLayoutProps) => {
             {conversations.map((conversation) => (
               <ListItem key={conversation.id}>
                 <ListItemButton
-                  onClick={() => navigate(`/app/${conversation.id}`)}
-                  selected={conversation.id === params.conversationId}
+                  onClick={() =>
+                    navigate({
+                      to: '/app/{-$conversationId}',
+                      params: { conversationId: conversation.id },
+                    })
+                  }
+                  selected={conversation.id === conversationId}
                 >
                   <ListItemText primary={conversation.title} />
                 </ListItemButton>
@@ -123,7 +138,7 @@ export const AppLayout = ({ children, onSettingsClick }: AppLayoutProps) => {
         <Box sx={{ borderTop: 1, borderColor: 'divider' }}>
           <List>
             <ListItem>
-              <ListItemButton onClick={logout}>
+              <ListItemButton onClick={signOut}>
                 <ListItemIcon>
                   <LogoutIcon />
                 </ListItemIcon>
