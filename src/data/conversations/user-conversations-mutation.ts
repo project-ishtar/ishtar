@@ -4,8 +4,8 @@ import {
   fetchConversation,
 } from './conversations-functions.ts';
 import type { Conversation } from '@ishtar/commons/types';
-import { useAuth } from '../../auth/use-auth.ts';
-import { useNavigate } from 'react-router';
+import { useAuthenticated } from '../../auth/use-auth.ts';
+import { useNavigate } from '@tanstack/react-router';
 
 type UseConversationsMutationProps = {
   onSettled?: () => void;
@@ -17,7 +17,7 @@ export const useConversationsMutation = (
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
-  const currentUserUid = useAuth().currentUserUid;
+  const currentUserUid = useAuthenticated().currentUserUid;
 
   return useMutation({
     mutationFn: fetchConversation,
@@ -32,7 +32,10 @@ export const useConversationsMutation = (
     },
     onSettled: (newConversation) => {
       if (newConversation?.id) {
-        navigate(`/app/${newConversation.id}`);
+        navigate({
+          to: '/app/{-$conversationId}',
+          params: { conversationId: newConversation.id },
+        });
         props?.onSettled?.();
       }
     },

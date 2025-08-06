@@ -21,30 +21,28 @@ import type {
   GeminiModel,
   User,
 } from '@ishtar/commons/types';
-import { useParams } from 'react-router';
 import { firebaseApp } from '../firebase';
 import { doc, collection, addDoc, updateDoc } from 'firebase/firestore';
 import { conversationConverter } from '../converters/conversation-converter.ts';
 import { getGlobalSettings } from '../data/global-settings.ts';
-import type { RouteParams } from '../routes/route-params.ts';
 import { useCurrentConversation } from '../data/conversations/use-current-conversation.ts';
 import { useConversationsMutation } from '../data/conversations/user-conversations-mutation.ts';
-import { useAuth } from '../auth/use-auth.ts';
+import { useAuthenticated } from '../auth/use-auth.ts';
 
 type ChatSettingsProps = {
   currentUser: User;
   isOpen: boolean;
   onClose: () => void;
+  conversationId?: string;
 };
 
 export const ChatSettings = ({
   isOpen,
   onClose,
   currentUser,
+  conversationId,
 }: ChatSettingsProps) => {
-  const params = useParams<RouteParams>();
-
-  const currentUserUid = useAuth().currentUserUid;
+  const currentUserUid = useAuthenticated().currentUserUid;
 
   const globalSettings = getGlobalSettings(currentUser.role);
 
@@ -63,10 +61,7 @@ export const ChatSettings = ({
   });
 
   useEffect(() => {
-    const currentUserId = firebaseApp.auth?.currentUser?.uid;
-    const conversationId = params.conversationId;
-
-    if (conversationId && currentUserId) {
+    if (conversationId) {
       if (conversation) {
         setChatTitle(conversation.title);
         setSystemInstruction(
@@ -89,14 +84,12 @@ export const ChatSettings = ({
     setLoading(false);
   }, [
     conversation,
+    conversationId,
     globalSettings.defaultGeminiModel,
     globalSettings.temperature,
-    params.conversationId,
   ]);
 
   const onSave = useCallback(async () => {
-    const conversationId = params.conversationId;
-
     if (!conversationId) {
       const newConversation: DraftConversation = {
         createdAt: new Date(),
@@ -152,10 +145,10 @@ export const ChatSettings = ({
     }
   }, [
     chatTitle,
+    conversationId,
     conversationsMutation,
     currentUserUid,
     model,
-    params.conversationId,
     systemInstruction,
     temperature,
   ]);

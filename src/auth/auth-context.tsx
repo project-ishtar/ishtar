@@ -1,13 +1,33 @@
 import { createContext } from 'react';
 
-type AuthContextProps = {
-  isAuthenticated: boolean;
+export type UnAuthenticatedAuthContextProps = {
+  isAuthenticated: false;
   isLoading: boolean;
-  currentUserUid: string;
+  currentUserUid: undefined;
+  login: (email: string, password: string) => Promise<void>;
+  logout: () => Promise<void>;
 };
 
-export const AuthContext = createContext<AuthContextProps>({
+export type AuthenticatedAuthContextProps = {
+  isAuthenticated: true;
+  isLoading: boolean;
+  currentUserUid: string;
+  login: (email: string, password: string) => Promise<void>;
+  logout: () => Promise<void>;
+};
+
+export const defaultAuthValues: UnAuthenticatedAuthContextProps = {
+  logout(): Promise<void> {
+    throw new Error('Not authenticated yet...');
+  },
   isAuthenticated: false,
   isLoading: true,
-  currentUserUid: '',
-});
+  currentUserUid: undefined,
+  login: async () => {
+    throw new Error('Not authenticated yet...');
+  },
+};
+
+export const AuthContext = createContext<
+  UnAuthenticatedAuthContextProps | AuthenticatedAuthContextProps
+>(defaultAuthValues);
