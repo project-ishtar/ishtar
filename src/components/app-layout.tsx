@@ -36,16 +36,21 @@ const Main = styled('main', { shouldForwardProp: (prop) => prop !== 'open' })<{
 }>(({ theme, open }) => ({
   flexGrow: 1,
   padding: theme.spacing(3),
-  transition: theme.transitions.create('margin', {}),
+  transition: theme.transitions.create(['margin', 'width'], {
+    easing: theme.transitions.easing.sharp,
+    duration: theme.transitions.duration.leavingScreen,
+  }),
   marginLeft: `-${drawerWidth}px`,
   display: 'flex',
   flexDirection: 'column',
   minHeight: '100vh',
   ...(open && {
-    transition: theme.transitions.create('margin', {
-      /* ... */
+    transition: theme.transitions.create(['margin', 'width'], {
+      easing: theme.transitions.easing.easeOut,
+      duration: theme.transitions.duration.enteringScreen,
     }),
     marginLeft: 0,
+    width: `calc(100% - ${drawerWidth}px)`,
   }),
 }));
 
@@ -207,47 +212,49 @@ export const AppLayout = ({
         </Box>
       </Drawer>
 
-      <Main open={isDrawerOpen}>
-        <Box
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            p: 1,
-            position: 'sticky',
-          }}
-        >
-          <IconButton
-            color="inherit"
-            aria-label="open drawer"
-            onClick={handleDrawerToggle}
-            edge="start"
+      <Main open={isDrawerOpen} sx={{ maxWidth: '100%' }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              p: 1,
+              position: 'sticky',
+            }}
           >
-            <MenuIcon />
-          </IconButton>
-          <Box sx={{ flexGrow: 1 }} />{' '}
-          <IconButton
-            color="inherit"
-            onClick={() =>
-              colorScheme.setMode(
-                colorScheme.mode === 'dark' ? 'light' : 'dark',
-              )
-            }
-          >
-            {theme.palette.mode === 'dark' ? (
-              <Tooltip title="Switch to Light Mode">
-                <LightModeIcon />
-              </Tooltip>
-            ) : (
-              <Tooltip title="Switch to Dark Mode">
-                <DarkModeIcon />
-              </Tooltip>
-            )}
-          </IconButton>
-          <IconButton color="inherit" onClick={onSettingsClick}>
-            <SettingsIcon />
-          </IconButton>
+            <IconButton
+              color="inherit"
+              aria-label="open drawer"
+              onClick={handleDrawerToggle}
+              edge="start"
+            >
+              <MenuIcon />
+            </IconButton>
+            <Box sx={{ flexGrow: 1 }} />{' '}
+            <IconButton
+              color="inherit"
+              onClick={() =>
+                colorScheme.setMode(
+                  colorScheme.mode === 'dark' ? 'light' : 'dark',
+                )
+              }
+            >
+              {theme.palette.mode === 'dark' ? (
+                <Tooltip title="Switch to Light Mode">
+                  <LightModeIcon />
+                </Tooltip>
+              ) : (
+                <Tooltip title="Switch to Dark Mode">
+                  <DarkModeIcon />
+                </Tooltip>
+              )}
+            </IconButton>
+            <IconButton color="inherit" onClick={onSettingsClick}>
+              <SettingsIcon />
+            </IconButton>
+          </Box>
+          <Box>{children}</Box>
         </Box>
-        {children}
       </Main>
       <Menu
         anchorEl={anchorEl}

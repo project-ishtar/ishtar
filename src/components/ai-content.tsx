@@ -1,4 +1,12 @@
-import React, { type JSX, useCallback, useMemo, useRef, useState } from 'react';
+import React, {
+  type DetailedHTMLProps,
+  type HTMLAttributes,
+  type JSX,
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { getAiResponse } from '../ai.ts';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
@@ -18,11 +26,29 @@ import {
 } from '../data/messages/chat-contents-functions.ts';
 import { useConversationsMutations } from '../data/conversations/use-conversations-mutations.ts';
 import { useNavigate } from '@tanstack/react-router';
-import { MuiMarkdown } from 'mui-markdown';
+import Markdown from 'react-markdown';
+import hljs from 'highlight.js';
 
 type AiContentProps = {
   conversationId?: string;
 };
+
+function SyntaxHighlightedCode(
+  props: DetailedHTMLProps<HTMLAttributes<HTMLElement>, HTMLElement>,
+) {
+  const ref = useRef<HTMLElement>(null);
+
+  React.useEffect(() => {
+    if (ref.current && props.className?.includes('language-') && hljs) {
+      hljs.highlightElement(ref.current);
+
+      // hljs won't reprocess the element unless this attribute is removed
+      ref.current.removeAttribute('data-highlighted');
+    }
+  }, [props.className, props.children]);
+
+  return <code {...props} ref={ref} />;
+}
 
 export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
   const [prompt, setPrompt] = useState<string>();
@@ -160,11 +186,6 @@ export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
           flexGrow: 1,
           overflowY: 'auto',
           p: 2,
-          overflowWrap: 'break-word',
-          wordWrap: 'break-word',
-          '& pre, & code': {
-            whiteSpace: 'pre-wrap',
-          },
         }}
       >
         {chatContents?.length ? (
@@ -194,7 +215,37 @@ export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
                 }}
               >
                 {message.role === 'model' ? (
-                  <MuiMarkdown>{message.text}</MuiMarkdown>
+                  <Markdown
+                    children={message.text}
+                    components={{
+                      pre(props) {
+                        return (
+                          <Box>
+                            <pre
+                              style={{ maxWidth: '100%', overflowX: 'scroll' }}
+                            >
+                              {props.children}
+                            </pre>
+                          </Box>
+                        );
+                      },
+                      code(props) {
+                        const { children, className, ...rest } = props;
+                        const match = /language-(\w+)/.exec(className || '');
+                        return match ? (
+                          <SyntaxHighlightedCode {...props} />
+                        ) : (
+                          <code
+                            {...rest}
+                            className={className}
+                            style={{ wordWrap: 'break-word' }}
+                          >
+                            {children}
+                          </code>
+                        );
+                      },
+                    }}
+                  />
                 ) : (
                   <Typography sx={{ whiteSpace: 'pre-wrap' }}>
                     {message.text}
