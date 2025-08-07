@@ -1,12 +1,4 @@
-import React, {
-  type DetailedHTMLProps,
-  type HTMLAttributes,
-  type JSX,
-  useCallback,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import React, { type JSX, useCallback, useMemo, useRef, useState } from 'react';
 import { getAiResponse } from '../ai.ts';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
@@ -27,28 +19,12 @@ import {
 import { useConversationsMutations } from '../data/conversations/use-conversations-mutations.ts';
 import { useNavigate } from '@tanstack/react-router';
 import Markdown from 'react-markdown';
-import hljs from 'highlight.js';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { dark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 type AiContentProps = {
   conversationId?: string;
 };
-
-function SyntaxHighlightedCode(
-  props: DetailedHTMLProps<HTMLAttributes<HTMLElement>, HTMLElement>,
-) {
-  const ref = useRef<HTMLElement>(null);
-
-  React.useEffect(() => {
-    if (ref.current && props.className?.includes('language-') && hljs) {
-      hljs.highlightElement(ref.current);
-
-      // hljs won't reprocess the element unless this attribute is removed
-      ref.current.removeAttribute('data-highlighted');
-    }
-  }, [props.className, props.children]);
-
-  return <code {...props} ref={ref} />;
-}
 
 export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
   const [prompt, setPrompt] = useState<string>();
@@ -233,7 +209,13 @@ export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
                         const { children, className, ...rest } = props;
                         const match = /language-(\w+)/.exec(className || '');
                         return match ? (
-                          <SyntaxHighlightedCode {...props} />
+                          <SyntaxHighlighter
+                            PreTag="div"
+                            children={String(children).replace(/\n$/, '')}
+                            style={
+                              theme.palette.mode === 'dark' ? dark : undefined
+                            }
+                          />
                         ) : (
                           <code
                             {...rest}
