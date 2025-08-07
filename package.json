@@ -31,9 +31,9 @@
     "@tanstack/react-router": "^1.130.12",
     "@tanstack/react-router-devtools": "^1.130.13",
     "firebase": "^12.0.0",
+    "mui-markdown": "^2.0.3",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "react-markdown": "^10.1.0",
     "styled-components": "^6.1.19",
     "uuid": "^11.1.0",
     "zod": "^4.0.15"

@@ -1,6 +1,5 @@
 import React, { type JSX, useCallback, useMemo, useRef, useState } from 'react';
 import { getAiResponse } from '../ai.ts';
-import Markdown from 'react-markdown';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
@@ -19,6 +18,7 @@ import {
 } from '../data/messages/chat-contents-functions.ts';
 import { useConversationsMutations } from '../data/conversations/use-conversations-mutations.ts';
 import { useNavigate } from '@tanstack/react-router';
+import { MuiMarkdown } from 'mui-markdown';
 
 type AiContentProps = {
   conversationId?: string;
@@ -194,7 +194,7 @@ export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
                 }}
               >
                 {message.role === 'model' ? (
-                  <Markdown>{message.text}</Markdown>
+                  <MuiMarkdown>{message.text}</MuiMarkdown>
                 ) : (
                   <Typography sx={{ whiteSpace: 'pre-wrap' }}>
                     {message.text}
