@@ -1,4 +1,11 @@
-import React, { type JSX, useCallback, useMemo, useRef, useState } from 'react';
+import React, {
+  type JSX,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { getAiResponse } from '../ai.ts';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
@@ -44,7 +51,7 @@ export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
     [conversationId, currentUserUid],
   );
 
-  const { data: chatContents } = useQuery({
+  const { data: chatContents, status: messagesStatus } = useQuery({
     queryKey: chatContentsQuery,
     queryFn: () => fetchMessages(currentUserUid, conversationId),
   });
@@ -71,6 +78,12 @@ export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   const shouldSubmitButtonBeDisabled = !prompt || isPromptSubmitted;
+
+  useEffect(() => {
+    if (messagesStatus === 'success') {
+      messagesEndRef?.current?.scrollIntoView();
+    }
+  }, [messagesStatus]);
 
   const onPromptChange = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
