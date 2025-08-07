@@ -160,6 +160,11 @@ export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
           flexGrow: 1,
           overflowY: 'auto',
           p: 2,
+          overflowWrap: 'break-word',
+          wordWrap: 'break-word',
+          '& pre, & code': {
+            whiteSpace: 'pre-wrap',
+          },
         }}
       >
         {chatContents?.length ? (
@@ -177,7 +182,7 @@ export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
                 sx={{
                   p: 1.5,
                   borderRadius: 2,
-                  maxWidth: '80%',
+                  maxWidth: '100%',
                   bgcolor:
                     message.role === 'user'
                       ? 'primary.main'
