@@ -219,6 +219,11 @@ export const AppLayout = ({
             alignItems: 'center',
             p: 1,
             position: 'sticky',
+            top: 0,
+            zIndex: theme.zIndex.appBar,
+            bgcolor: 'background.default', // Use the default page background color
+            borderBottom: 1,
+            borderColor: 'divider',
           }}
         >
           <IconButton
