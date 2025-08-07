@@ -213,48 +213,46 @@ export const AppLayout = ({
       </Drawer>
 
       <Main open={isDrawerOpen} sx={{ maxWidth: '100%' }}>
-        <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-          <Box
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              p: 1,
-              position: 'sticky',
-            }}
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            p: 1,
+            position: 'sticky',
+          }}
+        >
+          <IconButton
+            color="inherit"
+            aria-label="open drawer"
+            onClick={handleDrawerToggle}
+            edge="start"
           >
-            <IconButton
-              color="inherit"
-              aria-label="open drawer"
-              onClick={handleDrawerToggle}
-              edge="start"
-            >
-              <MenuIcon />
-            </IconButton>
-            <Box sx={{ flexGrow: 1 }} />{' '}
-            <IconButton
-              color="inherit"
-              onClick={() =>
-                colorScheme.setMode(
-                  colorScheme.mode === 'dark' ? 'light' : 'dark',
-                )
-              }
-            >
-              {theme.palette.mode === 'dark' ? (
-                <Tooltip title="Switch to Light Mode">
-                  <LightModeIcon />
-                </Tooltip>
-              ) : (
-                <Tooltip title="Switch to Dark Mode">
-                  <DarkModeIcon />
-                </Tooltip>
-              )}
-            </IconButton>
-            <IconButton color="inherit" onClick={onSettingsClick}>
-              <SettingsIcon />
-            </IconButton>
-          </Box>
-          <Box>{children}</Box>
+            <MenuIcon />
+          </IconButton>
+          <Box sx={{ flexGrow: 1 }} />{' '}
+          <IconButton
+            color="inherit"
+            onClick={() =>
+              colorScheme.setMode(
+                colorScheme.mode === 'dark' ? 'light' : 'dark',
+              )
+            }
+          >
+            {theme.palette.mode === 'dark' ? (
+              <Tooltip title="Switch to Light Mode">
+                <LightModeIcon />
+              </Tooltip>
+            ) : (
+              <Tooltip title="Switch to Dark Mode">
+                <DarkModeIcon />
+              </Tooltip>
+            )}
+          </IconButton>
+          <IconButton color="inherit" onClick={onSettingsClick}>
+            <SettingsIcon />
+          </IconButton>
         </Box>
+        {children}
       </Main>
       <Menu
         anchorEl={anchorEl}

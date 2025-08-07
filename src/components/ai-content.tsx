@@ -3,7 +3,7 @@ import { getAiResponse } from '../ai.ts';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
-import { Container, useMediaQuery, useTheme } from '@mui/material';
+import { useMediaQuery, useTheme } from '@mui/material';
 import CircularProgress from '@mui/material/CircularProgress';
 import SendIcon from '@mui/icons-material/Send';
 import LoadingButton from '@mui/lab/LoadingButton';
@@ -147,102 +147,102 @@ export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
   );
 
   return (
-    <Container
-      maxWidth={false}
-      disableGutters
-      sx={{
-        flexGrow: 1,
-        display: 'flex',
-        flexDirection: 'column',
-      }}
-    >
+    <>
       <Box
         component="main"
         sx={{
           flexGrow: 1,
           overflowY: 'auto',
           p: 2,
+          display: 'flex',
+          flexDirection: 'column',
         }}
       >
         {chatContents?.length ? (
-          chatContents?.map((message: ChatContent) => (
-            <Box
-              key={message.id}
-              sx={{
-                display: 'flex',
-                justifyContent:
-                  message.role === 'user' ? 'flex-end' : 'flex-start',
-                mb: 2,
-              }}
-            >
+          <Box sx={{ mt: 'auto' }}>
+            {chatContents?.map((message: ChatContent) => (
               <Box
+                key={message.id}
                 sx={{
-                  p: 1.5,
-                  borderRadius: 2,
-                  maxWidth: '100%',
-                  bgcolor:
-                    message.role === 'user'
-                      ? 'primary.main'
-                      : 'background.default',
-                  color:
-                    message.role === 'user'
-                      ? 'primary.contrastText'
-                      : 'text.primary',
+                  display: 'flex',
+                  justifyContent:
+                    message.role === 'user' ? 'flex-end' : 'flex-start',
+                  mb: 2,
                 }}
               >
-                {message.role === 'model' ? (
-                  <Markdown
-                    children={message.text}
-                    components={{
-                      pre(props) {
-                        return (
-                          <Box>
-                            <pre
-                              style={{ maxWidth: '100%', overflowX: 'scroll' }}
+                <Box
+                  sx={{
+                    p: 1.5,
+                    borderRadius: 2,
+                    maxWidth: '100%',
+                    bgcolor:
+                      message.role === 'user'
+                        ? 'primary.main'
+                        : 'background.default',
+                    color:
+                      message.role === 'user'
+                        ? 'primary.contrastText'
+                        : 'text.primary',
+                  }}
+                >
+                  {message.role === 'model' ? (
+                    <Markdown
+                      children={message.text}
+                      components={{
+                        pre(props) {
+                          return (
+                            <Box>
+                              <pre
+                                style={{
+                                  maxWidth: '100%',
+                                  overflowX: 'scroll',
+                                }}
+                              >
+                                {props.children}
+                              </pre>
+                            </Box>
+                          );
+                        },
+                        code(props) {
+                          const { children, className, ...rest } = props;
+                          const match = /language-(\w+)/.exec(className || '');
+                          return match ? (
+                            <SyntaxHighlighter
+                              PreTag="div"
+                              children={String(children).replace(/\n$/, '')}
+                              style={
+                                theme.palette.mode === 'dark' ? dark : undefined
+                              }
+                            />
+                          ) : (
+                            <code
+                              {...rest}
+                              className={className}
+                              style={{ wordWrap: 'break-word' }}
                             >
-                              {props.children}
-                            </pre>
-                          </Box>
-                        );
-                      },
-                      code(props) {
-                        const { children, className, ...rest } = props;
-                        const match = /language-(\w+)/.exec(className || '');
-                        return match ? (
-                          <SyntaxHighlighter
-                            PreTag="div"
-                            children={String(children).replace(/\n$/, '')}
-                            style={
-                              theme.palette.mode === 'dark' ? dark : undefined
-                            }
-                          />
-                        ) : (
-                          <code
-                            {...rest}
-                            className={className}
-                            style={{ wordWrap: 'break-word' }}
-                          >
-                            {children}
-                          </code>
-                        );
-                      },
-                    }}
-                  />
-                ) : (
-                  <Typography sx={{ whiteSpace: 'pre-wrap' }}>
-                    {message.text}
-                  </Typography>
-                )}
+                              {children}
+                            </code>
+                          );
+                        },
+                      }}
+                    />
+                  ) : (
+                    <Typography sx={{ whiteSpace: 'pre-wrap' }}>
+                      {message.text}
+                    </Typography>
+                  )}
+                </Box>
               </Box>
-            </Box>
-          ))
+            ))}
+          </Box>
         ) : (
           <Box
             sx={{
               display: 'flex',
               flexDirection: 'column',
-              justifyContent: 'center',
-              height: '100%',
+              justifyContent: 'center', // Vertically centers
+              alignItems: 'center', // Horizontally centers
+              flexGrow: 1, // Takes up all available space
               textAlign: 'center',
             }}
           >
@@ -293,6 +293,6 @@ export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
           </Typography>
         </Box>
       </Box>
-    </Container>
+    </>
   );
 };
