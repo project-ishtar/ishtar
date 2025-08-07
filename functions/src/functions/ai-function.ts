@@ -283,7 +283,7 @@ export const callAi = onCall<AiRequest>(
 
     console.log(`token count: ${tokenCount}`);
 
-    const shouldSummarize = false;
+    const shouldSummarize = model === 'gemini-2.5-pro';
 
     if (isChatModel && shouldSummarize && tokenCount >= 100000) {
       console.log('summary');
