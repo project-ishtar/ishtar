@@ -30,12 +30,11 @@ import { useConversationsMutations } from '../data/conversations/use-conversatio
 
 const drawerWidth = 240;
 
-// A styled component for the main content area that will resize
 const Main = styled('main', { shouldForwardProp: (prop) => prop !== 'open' })<{
   open?: boolean;
 }>(({ theme, open }) => ({
   flexGrow: 1,
-  padding: theme.spacing(3),
+  padding: 0, // FINAL FIX: Remove padding here, we'll apply it to children
   transition: theme.transitions.create(['margin', 'width'], {
     easing: theme.transitions.easing.sharp,
     duration: theme.transitions.duration.leavingScreen,
@@ -43,7 +42,8 @@ const Main = styled('main', { shouldForwardProp: (prop) => prop !== 'open' })<{
   marginLeft: `-${drawerWidth}px`,
   display: 'flex',
   flexDirection: 'column',
-  minHeight: '100vh',
+  height: '100vh',
+  overflow: 'hidden',
   ...(open && {
     transition: theme.transitions.create(['margin', 'width'], {
       easing: theme.transitions.easing.easeOut,
@@ -212,7 +212,7 @@ export const AppLayout = ({
         </Box>
       </Drawer>
 
-      <Main open={isDrawerOpen} sx={{ maxWidth: '100%' }}>
+      <Main open={isDrawerOpen}>
         <Box
           sx={{
             display: 'flex',
@@ -221,7 +221,7 @@ export const AppLayout = ({
             position: 'sticky',
             top: 0,
             zIndex: theme.zIndex.appBar,
-            bgcolor: 'background.default', // Use the default page background color
+            bgcolor: 'background.default',
             borderBottom: 1,
             borderColor: 'divider',
           }}
@@ -231,6 +231,7 @@ export const AppLayout = ({
             aria-label="open drawer"
             onClick={handleDrawerToggle}
             edge="start"
+            sx={{ ml: 1 }}
           >
             <MenuIcon />
           </IconButton>

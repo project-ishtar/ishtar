@@ -28,6 +28,7 @@ import { useNavigate } from '@tanstack/react-router';
 import Markdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { dark } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { useVirtualizer, measureElement } from '@tanstack/react-virtual';
 
 type AiContentProps = {
   conversationId?: string;
@@ -38,12 +39,12 @@ export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
   const [isPromptSubmitted, setIsPromptSubmitted] = useState(false);
 
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const parentRef = useRef<HTMLDivElement | null>(null);
 
   const theme = useTheme();
   const isSmallBreakpoint = useMediaQuery(theme.breakpoints.down('md'));
 
   const currentUserUid = useAuthenticated().currentUserUid;
-
   const queryClient = useQueryClient();
 
   const chatContentsQuery = useMemo(
@@ -51,7 +52,7 @@ export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
     [conversationId, currentUserUid],
   );
 
-  const { data: chatContents, status: messagesStatus } = useQuery({
+  const { data: chatContents = [] } = useQuery({
     queryKey: chatContentsQuery,
     queryFn: () => fetchMessages(currentUserUid, conversationId),
   });
@@ -67,7 +68,6 @@ export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
 
   const { fetchAndSetConversation } = useConversationsMutations();
   const conversation = useCurrentConversation();
-
   const navigate = useNavigate();
 
   const [tokenCount, setTokenCount] = useState({
@@ -75,15 +75,21 @@ export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
     outputTokenCount: conversation?.outputTokenCount ?? 0,
   });
 
-  const messagesEndRef = useRef<HTMLDivElement | null>(null);
-
-  const shouldSubmitButtonBeDisabled = !prompt || isPromptSubmitted;
+  const rowVirtualizer = useVirtualizer({
+    count: chatContents.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 150, // This estimate is now just a placeholder
+    overscan: 2,
+    measureElement,
+  });
 
   useEffect(() => {
-    if (messagesStatus === 'success') {
-      messagesEndRef?.current?.scrollIntoView();
+    if (chatContents.length > 0) {
+      rowVirtualizer.scrollToIndex(chatContents.length - 1, {
+        align: 'end',
+      });
     }
-  }, [messagesStatus]);
+  }, [chatContents.length, rowVirtualizer]);
 
   const onPromptChange = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -132,8 +138,6 @@ export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
             },
           });
         }
-
-        messagesEndRef.current?.scrollIntoView({ block: 'center' });
       }
     }
 
@@ -151,112 +155,140 @@ export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
       if (
         event.metaKey &&
         event.key === 'Enter' &&
-        !shouldSubmitButtonBeDisabled
+        !(!prompt || isPromptSubmitted)
       ) {
         onSubmit();
       }
     },
-    [onSubmit, shouldSubmitButtonBeDisabled],
+    [onSubmit, prompt, isPromptSubmitted],
   );
 
   return (
-    <>
+    <Box
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        flexGrow: 1,
+        overflow: 'hidden',
+      }}
+    >
       <Box
-        component="main"
+        ref={parentRef}
         sx={{
           flexGrow: 1,
           overflowY: 'auto',
           p: 2,
-          display: 'flex',
-          flexDirection: 'column',
         }}
       >
-        {chatContents?.length ? (
-          <Box sx={{ mt: 'auto' }}>
-            {chatContents?.map((message: ChatContent) => (
-              <Box
-                key={message.id}
-                sx={{
-                  display: 'flex',
-                  justifyContent:
-                    message.role === 'user' ? 'flex-end' : 'flex-start',
-                  mb: 2,
-                }}
-              >
+        {chatContents.length > 0 ? (
+          <Box
+            sx={{
+              height: `${rowVirtualizer.getTotalSize()}px`,
+              width: '100%',
+              position: 'relative',
+            }}
+          >
+            {rowVirtualizer.getVirtualItems().map((virtualItem) => {
+              const message = chatContents[virtualItem.index];
+              if (!message) return null; // Add a safeguard
+
+              return (
                 <Box
+                  key={message.id}
+                  ref={rowVirtualizer.measureElement}
+                  data-index={virtualItem.index}
                   sx={{
-                    p: 1.5,
-                    borderRadius: 2,
-                    maxWidth: '100%',
-                    bgcolor:
-                      message.role === 'user'
-                        ? 'primary.main'
-                        : 'background.default',
-                    color:
-                      message.role === 'user'
-                        ? 'primary.contrastText'
-                        : 'text.primary',
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    transform: `translateY(${virtualItem.start}px)`,
+                    display: 'flex',
+                    justifyContent:
+                      message.role === 'user' ? 'flex-end' : 'flex-start',
+                    padding: '8px 0',
                   }}
                 >
-                  {message.role === 'model' ? (
-                    <Markdown
-                      children={message.text}
-                      components={{
-                        pre(props) {
-                          return (
-                            <Box>
+                  <Box
+                    sx={{
+                      p: 1.5,
+                      borderRadius: 2,
+                      maxWidth: '98%',
+                      bgcolor:
+                        message.role === 'user'
+                          ? 'primary.main'
+                          : 'background.default',
+                      color:
+                        message.role === 'user'
+                          ? 'primary.contrastText'
+                          : 'text.primary',
+                      boxShadow: 1,
+                    }}
+                  >
+                    {message.role === 'model' ? (
+                      <Markdown
+                        children={message.text}
+                        components={{
+                          pre: ({ children }) => (
+                            <Box sx={{ maxWidth: '100%', overflowX: 'auto' }}>
                               <pre
                                 style={{
-                                  maxWidth: '100%',
-                                  overflowX: 'scroll',
+                                  margin: 0,
+                                  whiteSpace: 'pre-wrap',
                                 }}
                               >
-                                {props.children}
+                                {children}
                               </pre>
                             </Box>
-                          );
-                        },
-                        code(props) {
-                          const { children, className, ...rest } = props;
-                          const match = /language-(\w+)/.exec(className || '');
-                          return match ? (
-                            <SyntaxHighlighter
-                              PreTag="div"
-                              children={String(children).replace(/\n$/, '')}
-                              style={
-                                theme.palette.mode === 'dark' ? dark : undefined
-                              }
-                            />
-                          ) : (
-                            <code
-                              {...rest}
-                              className={className}
-                              style={{ wordWrap: 'break-word' }}
-                            >
-                              {children}
-                            </code>
-                          );
-                        },
-                      }}
-                    />
-                  ) : (
-                    <Typography sx={{ whiteSpace: 'pre-wrap' }}>
-                      {message.text}
-                    </Typography>
-                  )}
+                          ),
+                          code(props) {
+                            const { children, className, ...rest } = props;
+                            const match = /language-(\w+)/.exec(
+                              className || '',
+                            );
+                            return match ? (
+                              <SyntaxHighlighter
+                                PreTag="div"
+                                children={String(children).replace(/\n$/, '')}
+                                language={match[1]}
+                                style={
+                                  theme.palette.mode === 'dark'
+                                    ? dark
+                                    : undefined
+                                }
+                              />
+                            ) : (
+                              <code
+                                {...rest}
+                                className={className}
+                                style={{ wordWrap: 'break-word' }}
+                              >
+                                {children}
+                              </code>
+                            );
+                          },
+                        }}
+                      />
+                    ) : (
+                      <Typography sx={{ whiteSpace: 'pre-wrap' }}>
+                        {message.text}
+                      </Typography>
+                    )}
+                  </Box>
                 </Box>
-              </Box>
-            ))}
+              );
+            })}
           </Box>
         ) : (
           <Box
             sx={{
               display: 'flex',
               flexDirection: 'column',
-              justifyContent: 'center', // Vertically centers
-              alignItems: 'center', // Horizontally centers
-              flexGrow: 1, // Takes up all available space
+              justifyContent: 'center',
+              alignItems: 'center',
+              flexGrow: 1,
               textAlign: 'center',
+              height: '100%',
             }}
           >
             <Typography variant="h4" gutterBottom>
@@ -267,7 +299,6 @@ export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
             </Typography>
           </Box>
         )}
-        <div ref={messagesEndRef} />
       </Box>
       <Box
         component="footer"
@@ -276,6 +307,7 @@ export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
           bgcolor: 'background.paper',
           borderTop: 1,
           borderColor: 'divider',
+          flexShrink: 0,
         }}
       >
         <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
@@ -293,7 +325,7 @@ export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
             onClick={onSubmit}
             variant="outlined"
             color="success"
-            disabled={shouldSubmitButtonBeDisabled}
+            disabled={!prompt || isPromptSubmitted}
             loading={isPromptSubmitted}
             loadingIndicator={<CircularProgress size={20} color="info" />}
           >
@@ -306,6 +338,6 @@ export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
           </Typography>
         </Box>
       </Box>
-    </>
+    </Box>
   );
 };
