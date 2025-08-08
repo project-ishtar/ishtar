@@ -222,7 +222,6 @@ export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
                         message.role === 'user'
                           ? 'primary.contrastText'
                           : 'text.primary',
-                      boxShadow: 1,
                     }}
                   >
                     {message.role === 'model' ? (
