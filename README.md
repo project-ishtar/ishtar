@@ -6,6 +6,7 @@ Project Ishtar is a personal project where I built an AI chat application using 
 - **Firebase Cloud Firestore:** To persist user prompts and AI responses.
 - **Firebase Hosting:** To deploy the application as a website.
 - **TanStack Query & Router:** For data fetching and client-side routing.
+- **TanStack Virtual:** To efficiently virtualise messages, fetch the last 10 messages on initial load and load 10 more as the user scrolls up.
 - **MUI:** To create a responsive user interface.
 - **GitHub Actions:** For continuous integration and continuous deployment (CI/CD).
 - **Dark/Light Mode:** To provide a customizable user experience.
