@@ -14,6 +14,10 @@ export const Route = createFileRoute('/login')({
       throw redirect({ to: search.redirect ?? '/app/{-$conversationId}' });
     }
   },
+
+  onEnter: async () => {
+    document.title = 'Login';
+  },
 });
 
 function RouteComponent() {
