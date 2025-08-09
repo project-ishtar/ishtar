@@ -29,6 +29,7 @@ import Markdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { dark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { useVirtualizer, measureElement } from '@tanstack/react-virtual';
+import remarkGfm from 'remark-gfm';
 
 type AiContentProps = {
   conversationId?: string;
@@ -312,6 +313,7 @@ export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
                   >
                     {message.role === 'model' ? (
                       <Markdown
+                        remarkPlugins={[remarkGfm]}
                         children={message.text}
                         components={{
                           pre: ({ children }) => (
