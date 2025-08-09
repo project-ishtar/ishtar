@@ -7,17 +7,24 @@ import {
   query,
   where,
   and,
-  limit,
+  doc,
+  getDoc,
+  startAfter,
 } from 'firebase/firestore';
 import { messageConverter } from '../../converters/message-converter.ts';
 
-export const fetchMessages = async (
-  currentUserUid: string,
-  conversationId: string | undefined,
-) => {
+export const fetchMessages = async ({
+  currentUserUid,
+  conversationId,
+  messageId,
+}: {
+  currentUserUid: string;
+  conversationId?: string;
+  messageId?: string;
+}) => {
   if (!conversationId) return [];
 
-  const messagesRef = query(
+  let q = query(
     collection(
       firebaseApp.firestore,
       'users',
@@ -28,10 +35,27 @@ export const fetchMessages = async (
     ).withConverter(messageConverter),
     and(where('role', '!=', 'system'), where('isSummary', '==', false)),
     orderBy('timestamp', 'desc'),
-    limit(30),
   );
 
-  const messagesDocs = await getDocs(messagesRef);
+  if (messageId) {
+    const startAfterDocRef = doc(
+      firebaseApp.firestore,
+      'users',
+      currentUserUid,
+      'conversations',
+      conversationId,
+      'messages',
+      messageId,
+    );
+
+    const startAfterDocSnapshot = await getDoc(startAfterDocRef);
+
+    if (startAfterDocSnapshot.exists()) {
+      q = query(q, startAfter(startAfterDocSnapshot));
+    }
+  }
+
+  const messagesDocs = await getDocs(q);
 
   const messages: Message[] = [];
 

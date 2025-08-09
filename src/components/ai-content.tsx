@@ -54,7 +54,7 @@ export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
 
   const { data: chatContents = [] } = useQuery({
     queryKey: chatContentsQuery,
-    queryFn: () => fetchMessages(currentUserUid, conversationId),
+    queryFn: () => fetchMessages({ currentUserUid, conversationId }),
   });
 
   const messagesMutation = useMutation({
@@ -86,7 +86,7 @@ export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
   useEffect(() => {
     if (chatContents.length > 0) {
       rowVirtualizer.scrollToIndex(chatContents.length - 1, {
-        align: 'end',
+        align: 'start',
       });
     }
   }, [chatContents.length, rowVirtualizer]);
