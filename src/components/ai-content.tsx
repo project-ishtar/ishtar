@@ -38,6 +38,9 @@ export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
   const [prompt, setPrompt] = useState<string>();
   const [isPromptSubmitted, setIsPromptSubmitted] = useState(false);
 
+  const [renderedLastMessage, setRenderedLastMessage] = useState(false);
+  const [fetchedAllMessages, setFetchedAllMessages] = useState(false);
+
   const inputRef = useRef<HTMLInputElement | null>(null);
   const parentRef = useRef<HTMLDivElement | null>(null);
 
@@ -52,17 +55,39 @@ export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
     [conversationId, currentUserUid],
   );
 
-  const { data: chatContents = [] } = useQuery({
+  const { data: chatContents = [], status: fetchMessagesStatus } = useQuery({
     queryKey: chatContentsQuery,
     queryFn: () => fetchMessages({ currentUserUid, conversationId }),
   });
 
-  const messagesMutation = useMutation({
+  const messageUpdateMutation = useMutation({
     mutationFn: updateMessage,
     onSuccess: (newMessage) => {
       queryClient.setQueryData<ChatContent[]>(chatContentsQuery, (messages) =>
         messages ? [...messages, newMessage] : [newMessage],
       );
+    },
+    onSettled: () => {
+      rowVirtualizer.scrollToIndex(chatContents.length - 1, {
+        align: 'start',
+        behavior: 'smooth',
+      });
+    },
+  });
+
+  const fetchMoreMessagesMutation = useMutation({
+    mutationFn: fetchMessages,
+    onSuccess: (prevMessages) => {
+      queryClient.setQueryData<ChatContent[]>(chatContentsQuery, (messages) =>
+        messages ? [...prevMessages, ...messages] : [...prevMessages],
+      );
+    },
+    onSettled: (data) => {
+      if (data && data.length) {
+        rowVirtualizer.scrollToIndex(data.length, {
+          align: 'start',
+        });
+      }
     },
   });
 
@@ -78,18 +103,42 @@ export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
   const rowVirtualizer = useVirtualizer({
     count: chatContents.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 150, // This estimate is now just a placeholder
+    estimateSize: () => 150,
     overscan: 2,
     measureElement,
   });
 
   useEffect(() => {
-    if (chatContents.length > 0) {
+    if (
+      fetchMessagesStatus === 'success' &&
+      chatContents.length < 10 &&
+      !fetchedAllMessages
+    ) {
+      setFetchedAllMessages(true);
+    } else if (
+      fetchMoreMessagesMutation.status === 'success' &&
+      fetchMoreMessagesMutation.data.length < 10 &&
+      !fetchedAllMessages
+    ) {
+      setFetchedAllMessages(true);
+    }
+  }, [
+    chatContents.length,
+    fetchMessagesStatus,
+    fetchMoreMessagesMutation.data,
+    fetchMoreMessagesMutation.status,
+    fetchedAllMessages,
+  ]);
+
+  useEffect(() => {
+    if (chatContents.length > 0 && !renderedLastMessage) {
       rowVirtualizer.scrollToIndex(chatContents.length - 1, {
         align: 'start',
       });
+
+      setRenderedLastMessage(true);
     }
-  }, [chatContents.length, rowVirtualizer]);
+  }, [chatContents.length, renderedLastMessage, rowVirtualizer]);
 
   const onPromptChange = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -104,7 +153,11 @@ export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
 
       if (conversationId) {
         setPrompt('');
-        messagesMutation.mutate({ id: uuid(), text: prompt, role: 'user' });
+        messageUpdateMutation.mutate({
+          id: uuid(),
+          text: prompt,
+          role: 'user',
+        });
       }
 
       const response = await getAiResponse({
@@ -114,7 +167,7 @@ export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
 
       if (response) {
         if (conversationId) {
-          messagesMutation.mutate({
+          messageUpdateMutation.mutate({
             id: response.id,
             role: 'model',
             text: response.response ?? '',
@@ -145,7 +198,7 @@ export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
   }, [
     conversationId,
     fetchAndSetConversation,
-    messagesMutation,
+    messageUpdateMutation,
     navigate,
     prompt,
   ]);
@@ -163,6 +216,31 @@ export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
     [onSubmit, prompt, isPromptSubmitted],
   );
 
+  const onParentScroll = useCallback(
+    (event: React.UIEvent<HTMLDivElement>) => {
+      if (
+        event.currentTarget.scrollTop === 0 &&
+        renderedLastMessage &&
+        !fetchedAllMessages &&
+        fetchMoreMessagesMutation.status !== 'pending'
+      ) {
+        fetchMoreMessagesMutation.mutate({
+          currentUserUid,
+          conversationId,
+          messageId: chatContents[0].id,
+        });
+      }
+    },
+    [
+      chatContents,
+      conversationId,
+      currentUserUid,
+      fetchMoreMessagesMutation,
+      fetchedAllMessages,
+      renderedLastMessage,
+    ],
+  );
+
   return (
     <Box
       sx={{
@@ -173,6 +251,7 @@ export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
       }}
     >
       <Box
+        onScroll={onParentScroll}
         ref={parentRef}
         sx={{
           flexGrow: 1,
@@ -190,7 +269,14 @@ export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
           >
             {rowVirtualizer.getVirtualItems().map((virtualItem) => {
               const message = chatContents[virtualItem.index];
-              if (!message) return null; // Add a safeguard
+              if (!message) return null;
+
+              if (
+                virtualItem.index === chatContents.length - 1 &&
+                !renderedLastMessage
+              ) {
+                setRenderedLastMessage(true);
+              }
 
               return (
                 <Box

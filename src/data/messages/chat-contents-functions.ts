@@ -10,6 +10,7 @@ import {
   doc,
   getDoc,
   startAfter,
+  limit,
 } from 'firebase/firestore';
 import { messageConverter } from '../../converters/message-converter.ts';
 
@@ -35,6 +36,7 @@ export const fetchMessages = async ({
     ).withConverter(messageConverter),
     and(where('role', '!=', 'system'), where('isSummary', '==', false)),
     orderBy('timestamp', 'desc'),
+    limit(10),
   );
 
   if (messageId) {
