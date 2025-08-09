@@ -220,7 +220,7 @@ export const callAi = onCall<AiRequest>(
         ...(model !== 'gemini-2.5-pro' ||
         !conversation?.chatSettings?.enableThinking
           ? { thinkingConfig: { thinkingBudget: 0 } }
-          : {}),
+          : { thinkingConfig: { thinkingBudget: -1 } }),
       },
     });
 
