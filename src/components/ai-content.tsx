@@ -57,7 +57,7 @@ export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
     queryFn: () => fetchMessages({ currentUserUid, conversationId }),
   });
 
-  const messagesMutation = useMutation({
+  const messageUpdateMutation = useMutation({
     mutationFn: updateMessage,
     onSuccess: (newMessage) => {
       queryClient.setQueryData<ChatContent[]>(chatContentsQuery, (messages) =>
@@ -104,7 +104,11 @@ export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
 
       if (conversationId) {
         setPrompt('');
-        messagesMutation.mutate({ id: uuid(), text: prompt, role: 'user' });
+        messageUpdateMutation.mutate({
+          id: uuid(),
+          text: prompt,
+          role: 'user',
+        });
       }
 
       const response = await getAiResponse({
@@ -114,7 +118,7 @@ export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
 
       if (response) {
         if (conversationId) {
-          messagesMutation.mutate({
+          messageUpdateMutation.mutate({
             id: response.id,
             role: 'model',
             text: response.response ?? '',
@@ -145,7 +149,7 @@ export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
   }, [
     conversationId,
     fetchAndSetConversation,
-    messagesMutation,
+    messageUpdateMutation,
     navigate,
     prompt,
   ]);
@@ -163,6 +167,10 @@ export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
     [onSubmit, prompt, isPromptSubmitted],
   );
 
+  const onParentScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
+    console.log(`scroll top ${JSON.stringify(event.currentTarget.scrollTop)}`);
+  }, []);
+
   return (
     <Box
       sx={{
@@ -173,6 +181,7 @@ export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
       }}
     >
       <Box
+        onScroll={onParentScroll}
         ref={parentRef}
         sx={{
           flexGrow: 1,
