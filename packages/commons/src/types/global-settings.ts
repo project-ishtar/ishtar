@@ -4,4 +4,6 @@ export type GlobalSettings = {
   defaultGeminiModel: GeminiModel;
   supportedGeminiModels: GeminiModel[];
   temperature: number;
+  enableThinking: boolean;
+  enableMultiTurnConversation: boolean;
 };

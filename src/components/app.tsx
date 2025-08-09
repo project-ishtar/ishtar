@@ -1,6 +1,6 @@
 import { AppLayout } from './app-layout.tsx';
 import { AiContent } from './ai-content.tsx';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ChatSettings } from './chat-settings.tsx';
 import { LoadingSpinner } from './loading-spinner.tsx';
 import { useQuery } from '@tanstack/react-query';
@@ -23,6 +23,12 @@ export const App = ({ conversationId }: AppProps) => {
   const userQuery = useQuery(currentUserQueryOptions(currentUserUid));
 
   const currentConversation = useCurrentConversation();
+
+  useEffect(() => {
+    if (userQuery.status === 'success') {
+      document.title = userQuery.data.displayName;
+    }
+  }, [userQuery]);
 
   if (conversations.isPending || userQuery.isPending) {
     return <LoadingSpinner />;

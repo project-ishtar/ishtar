@@ -12,10 +12,14 @@ export const getGlobalSettings = (role: UserRole): GlobalSettings => {
           'gemini-2.0-flash-lite',
         ],
         temperature: 1,
+        enableMultiTurnConversation: false,
+        enableThinking: false,
       }
     : {
         defaultGeminiModel: 'gemini-2.0-flash-lite',
         supportedGeminiModels: ['gemini-2.0-flash', 'gemini-2.0-flash-lite'],
         temperature: 1,
+        enableMultiTurnConversation: false,
+        enableThinking: false,
       };
 };

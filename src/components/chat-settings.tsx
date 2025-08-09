@@ -7,14 +7,16 @@ import {
   DialogContent,
   DialogTitle,
   FormControl,
+  FormControlLabel,
   InputLabel,
   MenuItem,
   Select,
   type SelectChangeEvent,
   Slider,
+  Switch,
 } from '@mui/material';
 import Button from '@mui/material/Button';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import type {
   Conversation,
   DraftConversation,
@@ -41,48 +43,47 @@ export const ChatSettings = ({
 }: ChatSettingsProps) => {
   const globalSettings = getGlobalSettings(currentUser.role);
 
-  const [isLoading, setLoading] = useState(true);
-  const [chatTitle, setChatTitle] = useState('');
-  const [systemInstruction, setSystemInstruction] = useState<string>();
-  const [temperature, setTemperature] = useState(globalSettings.temperature);
-  const [model, setModel] = useState<GeminiModel>(
-    globalSettings.defaultGeminiModel,
-  );
-
   const conversation = useCurrentConversation();
+
+  const [chatTitle, setChatTitle] = useState(
+    conversation?.title ?? `New Chat - ${Date.now()}`,
+  );
+  const [systemInstruction, setSystemInstruction] = useState<string>(
+    conversation?.chatSettings?.systemInstruction ?? '',
+  );
+  const [temperature, setTemperature] = useState(
+    conversation?.chatSettings?.temperature ?? globalSettings.temperature,
+  );
+  const [model, setModel] = useState<GeminiModel>(
+    conversation?.chatSettings?.model ?? globalSettings.defaultGeminiModel,
+  );
+  const [enableThinking, setEnableThinking] = useState(
+    conversation?.chatSettings?.enableThinking ?? model === 'gemini-2.5-pro',
+  );
+  const [enableMultiTurnConversation, setEnableMultiTurnConversation] =
+    useState(
+      conversation?.chatSettings?.enableMultiTurnConversation ??
+        globalSettings.enableMultiTurnConversation,
+    );
 
   const { addConversation, updateConversation } = useConversationsMutations();
 
   const navigate = useNavigate();
 
-  useEffect(() => {
-    if (conversationId) {
-      if (conversation) {
-        setChatTitle(conversation.title);
-        setSystemInstruction(
-          conversation.chatSettings?.systemInstruction ?? '',
-        );
-        setTemperature(
-          conversation.chatSettings?.temperature ?? globalSettings.temperature,
-        );
-        setModel(
-          conversation?.chatSettings?.model ??
-            globalSettings.defaultGeminiModel,
-        );
-      }
-    } else {
-      setChatTitle(`New Chat - ${Date.now()}`);
-      setTemperature(globalSettings.temperature);
-      setModel(globalSettings.defaultGeminiModel);
-    }
+  const onModelChange = useCallback((event: SelectChangeEvent<GeminiModel>) => {
+    const newModel = event.target.value;
 
-    setLoading(false);
-  }, [
-    conversation,
-    conversationId,
-    globalSettings.defaultGeminiModel,
-    globalSettings.temperature,
-  ]);
+    setModel(newModel);
+
+    if (newModel === 'gemini-2.5-pro') {
+      setEnableThinking(true);
+    } else if (
+      newModel === 'gemini-2.0-flash' ||
+      newModel === 'gemini-2.0-flash-lite'
+    ) {
+      setEnableThinking(false);
+    }
+  }, []);
 
   const onSave = useCallback(async () => {
     if (!conversationId) {
@@ -96,6 +97,8 @@ export const ChatSettings = ({
           temperature,
           model: model,
           systemInstruction: systemInstruction ?? null,
+          enableThinking,
+          enableMultiTurnConversation,
         },
         inputTokenCount: 0,
         outputTokenCount: 0,
@@ -121,6 +124,8 @@ export const ChatSettings = ({
           temperature,
           model: model,
           systemInstruction: systemInstruction ?? null,
+          enableThinking,
+          enableMultiTurnConversation,
         },
       };
 
@@ -141,6 +146,8 @@ export const ChatSettings = ({
     addConversation,
     chatTitle,
     conversationId,
+    enableMultiTurnConversation,
+    enableThinking,
     model,
     navigate,
     onClose,
@@ -148,8 +155,6 @@ export const ChatSettings = ({
     temperature,
     updateConversation,
   ]);
-
-  if (isLoading) return null;
 
   return (
     <Dialog open={isOpen} onClose={onClose} fullWidth maxWidth="md">
@@ -160,7 +165,7 @@ export const ChatSettings = ({
           sx={{
             display: 'flex',
             flexDirection: 'column',
-            gap: 4, // Increased gap between each setting
+            gap: 4,
             mt: 2,
           }}
         >
@@ -177,33 +182,6 @@ export const ChatSettings = ({
           </Box>
           <Box>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-              Define the AI's behavior and personality for the conversation.
-            </Typography>
-            <TextField
-              value={systemInstruction}
-              onChange={(e) => setSystemInstruction(e.target.value)}
-              multiline
-              minRows={7}
-              fullWidth
-            />
-          </Box>
-          <Box>
-            <Typography variant="body2" color="text.secondary">
-              Define the AI's Temperature.
-            </Typography>
-            <Slider
-              value={temperature}
-              onChange={(_e, value) => setTemperature(Number(value))}
-              valueLabelDisplay="auto"
-              step={0.1}
-              marks
-              min={0.1}
-              max={2}
-              sx={{ width: '95%', mx: 'auto' }}
-            />
-          </Box>
-          <Box>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
               Define the AI Model.
             </Typography>
             <FormControl fullWidth>
@@ -211,10 +189,8 @@ export const ChatSettings = ({
               <Select
                 labelId="ai-model-select-label"
                 value={model}
-                label="AI Model" // This should match the InputLabel
-                onChange={(event: SelectChangeEvent<GeminiModel>) =>
-                  setModel(event.target.value)
-                }
+                label="AI Model"
+                onChange={onModelChange}
               >
                 {globalSettings.supportedGeminiModels.map((model) => (
                   <MenuItem key={model} value={model}>
@@ -223,6 +199,64 @@ export const ChatSettings = ({
                 ))}
               </Select>
             </FormControl>
+          </Box>
+          <Box>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+              Temperature
+            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <Slider
+                value={temperature}
+                onChange={(_e, value) => setTemperature(Number(value))}
+                valueLabelDisplay="auto"
+                step={0.1}
+                marks
+                min={0.1}
+                max={2}
+                sx={{ width: '50%' }}
+              />
+              {/* Toggles on the right */}
+              <Box>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      disabled={
+                        model === 'gemini-2.5-pro' ||
+                        model === 'gemini-2.0-flash' ||
+                        model === 'gemini-2.0-flash-lite'
+                      }
+                      checked={enableThinking}
+                      onChange={(e) => setEnableThinking(e.target.checked)}
+                    />
+                  }
+                  label="Enable Thinking"
+                />
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={enableMultiTurnConversation}
+                      onChange={(e) =>
+                        setEnableMultiTurnConversation(e.target.checked)
+                      }
+                    />
+                  }
+                  label="Enable Multi-turn Conversation"
+                />
+              </Box>
+            </Box>
+          </Box>
+          <Box>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+              Define the AI's behavior and personality for the conversation.
+            </Typography>
+            <TextField
+              value={systemInstruction}
+              onChange={(e) => setSystemInstruction(e.target.value)}
+              multiline
+              minRows={5}
+              maxRows={10}
+              fullWidth
+            />
           </Box>
         </Box>
       </DialogContent>

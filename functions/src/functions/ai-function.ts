@@ -95,6 +95,9 @@ export const callAi = onCall<AiRequest>(
           model: globalSettings.defaultGeminiModel,
           temperature: globalSettings.temperature,
           systemInstruction: null,
+          enableMultiTurnConversation:
+            globalSettings.enableMultiTurnConversation,
+          enableThinking: globalSettings.enableThinking,
         },
         summarizedMessageId: null,
         inputTokenCount: 0,
@@ -136,7 +139,7 @@ export const callAi = onCall<AiRequest>(
     }
 
     const isChatModel =
-      model !== 'gemini-2.0-flash' && model !== 'gemini-2.0-flash-lite';
+      conversation?.chatSettings?.enableMultiTurnConversation ?? false;
 
     /**
      * If chat token and this count crosses 50,000, summarize.
@@ -214,7 +217,8 @@ export const callAi = onCall<AiRequest>(
           conversation?.chatSettings?.systemInstruction ?? undefined,
         temperature:
           conversation?.chatSettings?.temperature ?? globalSettings.temperature,
-        ...(model !== 'gemini-2.5-pro'
+        ...(model !== 'gemini-2.5-pro' ||
+        !conversation?.chatSettings?.enableThinking
           ? { thinkingConfig: { thinkingBudget: 0 } }
           : {}),
       },
@@ -283,9 +287,7 @@ export const callAi = onCall<AiRequest>(
 
     console.log(`token count: ${tokenCount}`);
 
-    const shouldSummarize = model === 'gemini-2.5-pro';
-
-    if (isChatModel && shouldSummarize && tokenCount >= 100000) {
+    if (isChatModel && tokenCount >= 100000) {
       console.log('summary');
       try {
         const summaryResponse = await generateSummary({

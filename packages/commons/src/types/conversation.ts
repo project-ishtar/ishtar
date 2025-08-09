@@ -4,6 +4,8 @@ export type ChatSettings = {
   systemInstruction: string | null;
   temperature: number | null;
   model: GeminiModel | null;
+  enableThinking: boolean | null;
+  enableMultiTurnConversation: boolean | null;
 };
 
 export type Role = 'user' | 'model' | 'system';

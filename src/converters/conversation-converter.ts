@@ -14,6 +14,11 @@ export const conversationConverter = converter<Conversation>({
         temperature:
           (conversation.chatSettings as ChatSettings)?.temperature ?? null,
         model: (conversation.chatSettings as ChatSettings)?.model ?? null,
+        enableThinking:
+          (conversation.chatSettings as ChatSettings)?.enableThinking ?? null,
+        enableMultiTurnConversation:
+          (conversation.chatSettings as ChatSettings)
+            ?.enableMultiTurnConversation ?? null,
       },
       inputTokenCount: conversation.inputTokenCount ?? null,
       outputTokenCount: conversation.outputTokenCount ?? null,
@@ -38,6 +43,9 @@ export const conversationConverter = converter<Conversation>({
         systemInstruction: data.chatSettings?.systemInstruction ?? null,
         temperature: data.chatSettings?.temperature ?? null,
         model: data.chatSettings?.model ?? null,
+        enableThinking: data.chatSettings?.enableThinking ?? null,
+        enableMultiTurnConversation:
+          data.chatSettings?.enableMultiTurnConversation ?? null,
       },
       inputTokenCount: data.inputTokenCount,
       outputTokenCount: data.outputTokenCount,

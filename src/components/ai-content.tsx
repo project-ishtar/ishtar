@@ -403,6 +403,7 @@ export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
             placeholder="Prompt"
             value={prompt}
             multiline
+            maxRows={5}
             inputRef={inputRef}
             sx={{ flexGrow: 1 }}
           />
