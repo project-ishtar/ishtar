@@ -92,12 +92,13 @@ export const callAi = onCall<AiRequest>(
         isDeleted: false,
         title: `New Chat - ${Date.now()}`,
         chatSettings: {
-          model: globalSettings.defaultGeminiModel,
+          model: globalSettings.defaultModel,
           temperature: globalSettings.temperature,
           systemInstruction: null,
           enableMultiTurnConversation:
             globalSettings.enableMultiTurnConversation,
           enableThinking: globalSettings.enableThinking,
+          thinkingCapacity: null,
         },
         summarizedMessageId: null,
         inputTokenCount: 0,
@@ -132,7 +133,7 @@ export const callAi = onCall<AiRequest>(
     const contents: Content[] = [];
 
     const model =
-      conversation?.chatSettings?.model ?? globalSettings.defaultGeminiModel;
+      conversation?.chatSettings?.model ?? globalSettings.defaultModel;
 
     if (!model) {
       throw new HttpsError('permission-denied', 'No AI model available.');

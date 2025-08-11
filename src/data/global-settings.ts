@@ -3,11 +3,14 @@ import type { GlobalSettings, UserRole } from '@ishtar/commons/types';
 export const getGlobalSettings = (role: UserRole): GlobalSettings => {
   return role === 'admin'
     ? {
-        defaultGeminiModel: 'gemini-2.5-flash',
-        supportedGeminiModels: [
+        defaultModel: 'gemini-2.5-flash',
+        supportedModels: [
           'gemini-2.5-pro',
+          'gpt-5',
           'gemini-2.5-flash',
+          'gpt-5-mini',
           'gemini-2.5-flash-lite',
+          'gpt-5-nano',
           'gemini-2.0-flash',
           'gemini-2.0-flash-lite',
         ],
@@ -16,8 +19,12 @@ export const getGlobalSettings = (role: UserRole): GlobalSettings => {
         enableThinking: false,
       }
     : {
-        defaultGeminiModel: 'gemini-2.0-flash-lite',
-        supportedGeminiModels: ['gemini-2.0-flash', 'gemini-2.0-flash-lite'],
+        defaultModel: 'gemini-2.0-flash-lite',
+        supportedModels: [
+          'gpt-5-nano',
+          'gemini-2.0-flash',
+          'gemini-2.0-flash-lite',
+        ],
         temperature: 1,
         enableMultiTurnConversation: false,
         enableThinking: false,
