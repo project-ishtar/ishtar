@@ -20,7 +20,7 @@ import { useCallback, useState } from 'react';
 import type {
   Conversation,
   DraftConversation,
-  GeminiModel,
+  Model,
   User,
 } from '@ishtar/commons/types';
 import { getGlobalSettings } from '../data/global-settings.ts';
@@ -54,8 +54,8 @@ export const ChatSettings = ({
   const [temperature, setTemperature] = useState(
     conversation?.chatSettings?.temperature ?? globalSettings.temperature,
   );
-  const [model, setModel] = useState<GeminiModel>(
-    conversation?.chatSettings?.model ?? globalSettings.defaultGeminiModel,
+  const [model, setModel] = useState<Model>(
+    conversation?.chatSettings?.model ?? globalSettings.defaultModel,
   );
   const [enableThinking, setEnableThinking] = useState(
     conversation?.chatSettings?.enableThinking ?? model === 'gemini-2.5-pro',
@@ -70,7 +70,7 @@ export const ChatSettings = ({
 
   const navigate = useNavigate();
 
-  const onModelChange = useCallback((event: SelectChangeEvent<GeminiModel>) => {
+  const onModelChange = useCallback((event: SelectChangeEvent<Model>) => {
     const newModel = event.target.value;
 
     setModel(newModel);
@@ -98,6 +98,7 @@ export const ChatSettings = ({
           model: model,
           systemInstruction: systemInstruction ?? null,
           enableThinking,
+          thinkingCapacity: null,
           enableMultiTurnConversation,
         },
         inputTokenCount: 0,
@@ -125,6 +126,7 @@ export const ChatSettings = ({
           model: model,
           systemInstruction: systemInstruction ?? null,
           enableThinking,
+          thinkingCapacity: null,
           enableMultiTurnConversation,
         },
       };
@@ -192,7 +194,7 @@ export const ChatSettings = ({
                 label="AI Model"
                 onChange={onModelChange}
               >
-                {globalSettings.supportedGeminiModels.map((model) => (
+                {globalSettings.supportedModels.map((model) => (
                   <MenuItem key={model} value={model}>
                     {model}
                   </MenuItem>
