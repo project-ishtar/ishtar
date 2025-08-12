@@ -1,4 +1,4 @@
-import { Content, GenerateContentConfig } from '@google/genai';
+import { Content, GenerateContentConfig, GoogleGenAI } from '@google/genai';
 import { safetySettings } from '../gemini/safety-settings';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import {
@@ -8,14 +8,18 @@ import {
   DraftConversation,
   Message,
 } from '@ishtar/commons/types';
-import { ai, db } from '../index';
+import { db } from '../index';
 import admin from 'firebase-admin';
 import { chatMessageConverter } from '../converters/message-converter';
 import { getUserById } from '../cache/user-cache';
 import { getGlobalSettings } from '../cache/global-settings';
+import { OpenAI } from 'openai';
+
+let geminiAI: GoogleGenAI;
+let openAI: OpenAI;
 
 const functionOptions = {
-  secrets: ['GEMINI_API_KEY'],
+  secrets: ['GEMINI_API_KEY', 'OPENAI_API_KEY'],
 };
 
 const chatConfig: GenerateContentConfig = {
@@ -209,7 +213,11 @@ export const callAi = onCall<AiRequest>(
       isSummary: false,
     } as Message);
 
-    const response = await ai.models.generateContent({
+    if (!geminiAI) {
+      geminiAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+    }
+
+    const response = await geminiAI.models.generateContent({
       model,
       contents,
       config: {
@@ -229,7 +237,7 @@ export const callAi = onCall<AiRequest>(
       throw new HttpsError('internal', 'Something went wrong.');
     }
 
-    const promptResponseToken = await ai.models.countTokens({
+    const promptResponseToken = await geminiAI.models.countTokens({
       model,
       contents: [prompt, response.text ?? ''],
     });
@@ -405,7 +413,7 @@ async function generateSummary({
     isSummary: false,
   } as Message);
 
-  const summaryResponse = await ai.models.generateContent({
+  const summaryResponse = await geminiAI.models.generateContent({
     model: 'gemini-2.5-flash',
     contents: contentsToSummarize,
     config: {
