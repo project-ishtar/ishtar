@@ -1,10 +1,11 @@
-import type { GeminiModel } from './ai-models.ts';
+import type { Model, OpenAIModel, OpenAIReasoningEffort } from './ai-models.ts';
 
 export type ChatSettings = {
   systemInstruction: string | null;
   temperature: number | null;
-  model: GeminiModel | null;
+  model: Model | OpenAIModel | null;
   enableThinking: boolean | null;
+  thinkingCapacity: number | OpenAIReasoningEffort | null;
   enableMultiTurnConversation: boolean | null;
 };
 

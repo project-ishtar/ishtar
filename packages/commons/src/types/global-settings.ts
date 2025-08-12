@@ -1,8 +1,8 @@
-import type { GeminiModel } from './ai-models';
+import type { Model } from './ai-models';
 
 export type GlobalSettings = {
-  defaultGeminiModel: GeminiModel;
-  supportedGeminiModels: GeminiModel[];
+  defaultModel: Model;
+  supportedModels: Model[];
   temperature: number;
   enableThinking: boolean;
   enableMultiTurnConversation: boolean;
