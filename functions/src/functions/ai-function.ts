@@ -13,10 +13,8 @@ import admin from 'firebase-admin';
 import { chatMessageConverter } from '../converters/message-converter';
 import { getUserById } from '../cache/user-cache';
 import { getGlobalSettings } from '../cache/global-settings';
-import { OpenAI } from 'openai';
 
 let geminiAI: GoogleGenAI;
-let openAI: OpenAI;
 
 const functionOptions = {
   secrets: ['GEMINI_API_KEY', 'OPENAI_API_KEY'],
