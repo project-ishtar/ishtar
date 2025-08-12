@@ -224,10 +224,19 @@ export const callAi = onCall<AiRequest>(
           conversation?.chatSettings?.systemInstruction ?? undefined,
         temperature:
           conversation?.chatSettings?.temperature ?? globalSettings.temperature,
-        ...(model !== 'gemini-2.5-pro' ||
-        !conversation?.chatSettings?.enableThinking
-          ? { thinkingConfig: { thinkingBudget: 0 } }
-          : { thinkingConfig: { thinkingBudget: -1 } }),
+        ...(conversation?.chatSettings?.enableThinking &&
+        conversation?.chatSettings?.thinkingCapacity
+          ? {
+              thinkingConfig: {
+                thinkingBudget: conversation.chatSettings
+                  .thinkingCapacity as number,
+              },
+            }
+          : {
+              thinkingConfig: {
+                thinkingBudget: 0,
+              },
+            }),
       },
     });
 

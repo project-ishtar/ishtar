@@ -21,6 +21,7 @@ import type {
   Conversation,
   DraftConversation,
   Model,
+  OpenAIReasoningEffort,
   User,
 } from '@ishtar/commons/types';
 import { getGlobalSettings } from '../data/global-settings.ts';
@@ -66,6 +67,22 @@ export const ChatSettings = ({
         globalSettings.enableMultiTurnConversation,
     );
 
+  const [geminiMaxThinkingTokenCount, setGeminiMaxThinkingTokenCount] =
+    useState<number>(
+      model.includes('gemini') &&
+        typeof conversation?.chatSettings?.thinkingCapacity === 'number'
+        ? conversation.chatSettings.thinkingCapacity
+        : globalSettings.geminiMaxThinkingTokenCount,
+    );
+
+  const [openAIReasoningEffort, setOpenAIReasoningEffort] =
+    useState<OpenAIReasoningEffort>(
+      model.includes('gpt') &&
+        typeof conversation?.chatSettings?.thinkingCapacity === 'string'
+        ? conversation?.chatSettings.thinkingCapacity
+        : globalSettings.openAIReasoningEffort,
+    );
+
   const { addConversation, updateConversation } = useConversationsMutations();
 
   const navigate = useNavigate();
@@ -86,6 +103,13 @@ export const ChatSettings = ({
   }, []);
 
   const onSave = useCallback(async () => {
+    const thinkingCapacity: number | OpenAIReasoningEffort | null =
+      enableThinking
+        ? model.includes('gemini')
+          ? geminiMaxThinkingTokenCount
+          : openAIReasoningEffort
+        : null;
+
     if (!conversationId) {
       const newConversation: DraftConversation = {
         createdAt: new Date(),
@@ -98,7 +122,7 @@ export const ChatSettings = ({
           model: model,
           systemInstruction: systemInstruction ?? null,
           enableThinking,
-          thinkingCapacity: null,
+          thinkingCapacity,
           enableMultiTurnConversation,
         },
         inputTokenCount: 0,
@@ -126,7 +150,7 @@ export const ChatSettings = ({
           model: model,
           systemInstruction: systemInstruction ?? null,
           enableThinking,
-          thinkingCapacity: null,
+          thinkingCapacity,
           enableMultiTurnConversation,
         },
       };
@@ -150,13 +174,25 @@ export const ChatSettings = ({
     conversationId,
     enableMultiTurnConversation,
     enableThinking,
+    geminiMaxThinkingTokenCount,
     model,
     navigate,
     onClose,
+    openAIReasoningEffort,
     systemInstruction,
     temperature,
     updateConversation,
   ]);
+
+  const shouldDisableSubmitButton = useCallback(
+    () =>
+      !chatTitle ||
+      (enableThinking &&
+        model.includes('gemini') &&
+        (geminiMaxThinkingTokenCount === 0 ||
+          geminiMaxThinkingTokenCount < -1)),
+    [chatTitle, enableThinking, geminiMaxThinkingTokenCount, model],
+  );
 
   return (
     <Dialog open={isOpen} onClose={onClose} fullWidth maxWidth="md">
@@ -195,7 +231,7 @@ export const ChatSettings = ({
                 onChange={onModelChange}
               >
                 {globalSettings.supportedModels
-                  .filter((model) => !model.includes('gpt'))
+                  .filter((model) => model.includes('gemini'))
                   .map((model) => (
                     <MenuItem key={model} value={model}>
                       {model}
@@ -219,7 +255,6 @@ export const ChatSettings = ({
                 max={2}
                 sx={{ width: '50%' }}
               />
-              {/* Toggles on the right */}
               <Box>
                 <FormControlLabel
                   control={
@@ -235,6 +270,64 @@ export const ChatSettings = ({
                   }
                   label="Enable Thinking"
                 />
+                {model.includes('gemini') && enableThinking ? (
+                  <>
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ mb: 1 }}
+                    >
+                      Max Gemini Thinking Tokens
+                    </Typography>
+                    <TextField
+                      type="number"
+                      autoFocus
+                      value={geminiMaxThinkingTokenCount}
+                      onChange={(e) =>
+                        setGeminiMaxThinkingTokenCount(
+                          Number.parseInt(e.target.value),
+                        )
+                      }
+                      fullWidth
+                    />
+                  </>
+                ) : null}
+                {model.includes('gpt') && enableThinking ? (
+                  <>
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ mb: 1 }}
+                    >
+                      OpenAI Reasoning Efforts
+                    </Typography>
+                    <FormControl fullWidth>
+                      <Select
+                        labelId="openai-reasoning-label"
+                        value={openAIReasoningEffort}
+                        label="AI Model"
+                        onChange={(
+                          event: SelectChangeEvent<OpenAIReasoningEffort>,
+                        ) => {
+                          setOpenAIReasoningEffort(event.target.value);
+                        }}
+                      >
+                        <MenuItem key="minimal" value="minimal">
+                          minimal
+                        </MenuItem>
+                        <MenuItem key="low" value="low">
+                          low
+                        </MenuItem>
+                        <MenuItem key="medium" value="medium">
+                          medium
+                        </MenuItem>
+                        <MenuItem key="high" value="high">
+                          high
+                        </MenuItem>
+                      </Select>
+                    </FormControl>
+                  </>
+                ) : null}
                 <FormControlLabel
                   control={
                     <Switch
@@ -266,7 +359,11 @@ export const ChatSettings = ({
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>Cancel</Button>
-        <Button onClick={onSave} variant="contained" disabled={!chatTitle}>
+        <Button
+          onClick={onSave}
+          variant="contained"
+          disabled={shouldDisableSubmitButton()}
+        >
           Save
         </Button>
       </DialogActions>
