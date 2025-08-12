@@ -194,11 +194,13 @@ export const ChatSettings = ({
                 label="AI Model"
                 onChange={onModelChange}
               >
-                {globalSettings.supportedModels.map((model) => (
-                  <MenuItem key={model} value={model}>
-                    {model}
-                  </MenuItem>
-                ))}
+                {globalSettings.supportedModels
+                  .filter((model) => !model.includes('gpt'))
+                  .map((model) => (
+                    <MenuItem key={model} value={model}>
+                      {model}
+                    </MenuItem>
+                  ))}
               </Select>
             </FormControl>
           </Box>
