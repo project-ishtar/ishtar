@@ -19,7 +19,8 @@ export const conversationConverter = converter<Conversation>({
         enableMultiTurnConversation:
           (conversation.chatSettings as ChatSettings)
             ?.enableMultiTurnConversation ?? null,
-        thinkingCapacity: null,
+        thinkingCapacity:
+          (conversation.chatSettings as ChatSettings)?.thinkingCapacity ?? null,
       },
       inputTokenCount: conversation.inputTokenCount ?? null,
       outputTokenCount: conversation.outputTokenCount ?? null,
@@ -47,7 +48,7 @@ export const conversationConverter = converter<Conversation>({
         enableThinking: data.chatSettings?.enableThinking ?? null,
         enableMultiTurnConversation:
           data.chatSettings?.enableMultiTurnConversation ?? null,
-        thinkingCapacity: null,
+        thinkingCapacity: data.chatSettings?.thinkingCapacity ?? null,
       },
       inputTokenCount: data.inputTokenCount,
       outputTokenCount: data.outputTokenCount,
