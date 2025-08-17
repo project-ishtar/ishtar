@@ -17,7 +17,7 @@ import { getGlobalSettings } from '../cache/global-settings';
 let geminiAI: GoogleGenAI;
 
 const functionOptions = {
-  secrets: ['GEMINI_API_KEY', 'OPENAI_API_KEY'],
+  secrets: ['GEMINI_API_KEY'],
 };
 
 const chatConfig: GenerateContentConfig = {
@@ -303,7 +303,7 @@ export const callAi = onCall<AiRequest>(
 
     console.log(`token count: ${tokenCount}`);
 
-    if (isChatModel && tokenCount >= 100000) {
+    if (isChatModel && tokenCount >= 75000) {
       console.log('summary');
       try {
         const summaryResponse = await generateSummary({
