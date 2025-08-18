@@ -252,7 +252,9 @@ export const callAi = onCall<AiRequest>(
     tokenCount += promptResponseToken?.totalTokens ?? 0;
 
     const inputTokenCount = response.usageMetadata?.promptTokenCount ?? 0;
-    const outputTokenCount = response.usageMetadata?.candidatesTokenCount ?? 0;
+    const outputTokenCount =
+      (response.usageMetadata?.candidatesTokenCount ?? 0) +
+      (response.usageMetadata?.thoughtsTokenCount ?? 0);
 
     console.log(`Usage metadata: ${JSON.stringify(response.usageMetadata)}`);
 
@@ -427,6 +429,7 @@ async function generateSummary({
       ...chatConfig,
       temperature: 0.3,
       systemInstruction: instructions,
+      thinkingConfig: { thinkingBudget: -1 },
     },
   });
 
@@ -437,7 +440,8 @@ async function generateSummary({
     const inputTokenCount =
       summaryResponse.usageMetadata?.promptTokenCount ?? 0;
     const outputTokenCount =
-      summaryResponse.usageMetadata?.candidatesTokenCount ?? 0;
+      (summaryResponse.usageMetadata?.candidatesTokenCount ?? 0) +
+      (summaryResponse.usageMetadata?.thoughtsTokenCount ?? 0);
 
     batch.update(newSystemMessageRef, {
       tokenCount: inputTokenCount,
