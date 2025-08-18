@@ -224,13 +224,16 @@ export const callAi = onCall<AiRequest>(
           conversation?.chatSettings?.systemInstruction ?? undefined,
         temperature:
           conversation?.chatSettings?.temperature ?? globalSettings.temperature,
-        ...(conversation?.chatSettings?.enableThinking &&
-        conversation?.chatSettings?.thinkingCapacity
+        ...(conversation?.chatSettings?.enableThinking
           ? {
-              thinkingConfig: {
-                thinkingBudget: conversation.chatSettings
-                  .thinkingCapacity as number,
-              },
+              ...(conversation?.chatSettings?.thinkingCapacity === null
+                ? {}
+                : {
+                    thinkingConfig: {
+                      thinkingBudget: conversation.chatSettings
+                        .thinkingCapacity as number,
+                    },
+                  }),
             }
           : {
               thinkingConfig: {

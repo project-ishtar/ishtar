@@ -106,7 +106,9 @@ export const ChatSettings = ({
     const thinkingCapacity: number | OpenAIReasoningEffort | null =
       enableThinking
         ? model.includes('gemini')
-          ? geminiMaxThinkingTokenCount
+          ? !isNaN(geminiMaxThinkingTokenCount)
+            ? geminiMaxThinkingTokenCount
+            : null
           : openAIReasoningEffort
         : null;
 
