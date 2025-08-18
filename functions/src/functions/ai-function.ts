@@ -247,6 +247,12 @@ export const callAi = onCall<AiRequest>(
       throw new HttpsError('internal', 'Something went wrong.');
     }
 
+    if (response.promptFeedback) {
+      console.log(
+        `prompt feedback: ${JSON.stringify(response.promptFeedback)}`,
+      );
+    }
+
     const promptResponseToken = await geminiAI.models.countTokens({
       model,
       contents: [prompt, response.text ?? ''],
