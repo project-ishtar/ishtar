@@ -258,6 +258,8 @@ export const callAi = onCall<AiRequest>(
       tokenCount: inputTokenCount,
     });
 
+    tokenCount += inputTokenCount;
+
     let totalInputTokenCount =
       (conversation.inputTokenCount ?? 0) + inputTokenCount;
     let totalOutputTokenCount =
@@ -279,20 +281,22 @@ export const callAi = onCall<AiRequest>(
       isSummary: false,
     } as Message);
 
+    tokenCount += outputTokenCount;
+
     await batch.commit();
 
     if (!response.text) {
-      throw new HttpsError(
-        'internal',
-        'The AI model failed to generate a response. Please try again.',
-      );
-    }
+      if (response.promptFeedback?.blockReason) {
+        throw new HttpsError(
+          'permission-denied',
+          response.promptFeedback.blockReasonMessage ??
+            'AI refused to generate a response.',
+        );
+      }
 
-    if (response.promptFeedback?.blockReason) {
       throw new HttpsError(
         'permission-denied',
-        response.promptFeedback.blockReasonMessage ??
-          'AI refused to generate a response.',
+        'The AI model failed to generate a response. Please try again.',
       );
     }
 
@@ -302,7 +306,6 @@ export const callAi = onCall<AiRequest>(
     console.log(`token count: ${tokenCount}`);
 
     if (isChatModel && tokenCount >= 75000) {
-      console.log('summary');
       try {
         const summaryResponse = await generateSummary({
           messagesInOrderDoc: messagesInOrderDoc!,
