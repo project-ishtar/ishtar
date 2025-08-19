@@ -244,13 +244,7 @@ export const callAi = onCall<AiRequest>(
     });
 
     if (!response) {
-      throw new HttpsError('internal', 'Something went wrong.');
-    }
-
-    if (response.promptFeedback) {
-      console.log(
-        `prompt feedback: ${JSON.stringify(response.promptFeedback)}`,
-      );
+      throw new HttpsError('internal', 'AI server failed to respond.');
     }
 
     const promptResponseToken = await geminiAI.models.countTokens({
