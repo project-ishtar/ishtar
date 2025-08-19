@@ -244,21 +244,8 @@ export const callAi = onCall<AiRequest>(
     });
 
     if (!response) {
-      throw new HttpsError('internal', 'Something went wrong.');
+      throw new HttpsError('internal', 'AI server failed to respond.');
     }
-
-    if (response.promptFeedback) {
-      console.log(
-        `prompt feedback: ${JSON.stringify(response.promptFeedback)}`,
-      );
-    }
-
-    const promptResponseToken = await geminiAI.models.countTokens({
-      model,
-      contents: [prompt, response.text ?? ''],
-    });
-
-    tokenCount += promptResponseToken?.totalTokens ?? 0;
 
     const inputTokenCount = response.usageMetadata?.promptTokenCount ?? 0;
     const outputTokenCount =
@@ -270,6 +257,8 @@ export const callAi = onCall<AiRequest>(
     batch.update(newUserMessageRef, {
       tokenCount: inputTokenCount,
     });
+
+    tokenCount += inputTokenCount;
 
     let totalInputTokenCount =
       (conversation.inputTokenCount ?? 0) + inputTokenCount;
@@ -292,20 +281,22 @@ export const callAi = onCall<AiRequest>(
       isSummary: false,
     } as Message);
 
+    tokenCount += outputTokenCount;
+
     await batch.commit();
 
     if (!response.text) {
-      throw new HttpsError(
-        'internal',
-        'The AI model failed to generate a response. Please try again.',
-      );
-    }
+      if (response.promptFeedback?.blockReason) {
+        throw new HttpsError(
+          'permission-denied',
+          response.promptFeedback.blockReasonMessage ??
+            'AI refused to generate a response.',
+        );
+      }
 
-    if (response.promptFeedback?.blockReason) {
       throw new HttpsError(
         'permission-denied',
-        response.promptFeedback.blockReasonMessage ??
-          'AI refused to generate a response.',
+        'The AI model failed to generate a response. Please try again.',
       );
     }
 
@@ -315,7 +306,6 @@ export const callAi = onCall<AiRequest>(
     console.log(`token count: ${tokenCount}`);
 
     if (isChatModel && tokenCount >= 75000) {
-      console.log('summary');
       try {
         const summaryResponse = await generateSummary({
           messagesInOrderDoc: messagesInOrderDoc!,
