@@ -247,13 +247,6 @@ export const callAi = onCall<AiRequest>(
       throw new HttpsError('internal', 'AI server failed to respond.');
     }
 
-    const promptResponseToken = await geminiAI.models.countTokens({
-      model,
-      contents: [prompt, response.text ?? ''],
-    });
-
-    tokenCount += promptResponseToken?.totalTokens ?? 0;
-
     const inputTokenCount = response.usageMetadata?.promptTokenCount ?? 0;
     const outputTokenCount =
       (response.usageMetadata?.candidatesTokenCount ?? 0) +
