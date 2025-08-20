@@ -371,7 +371,7 @@ export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
             sx={{
               display: 'flex',
               flexDirection: 'column',
-              justifyContent: 'center',
+              // justifyContent: 'center',
               alignItems: 'center',
               flexGrow: 1,
               textAlign: 'center',
