@@ -28,7 +28,7 @@ import { useNavigate } from '@tanstack/react-router';
 import Markdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { dark } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { useVirtualizer, measureElement } from '@tanstack/react-virtual';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import remarkGfm from 'remark-gfm';
 
 type AiContentProps = {
@@ -43,7 +43,11 @@ export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
   const [fetchedAllMessages, setFetchedAllMessages] = useState(false);
 
   const inputRef = useRef<HTMLInputElement | null>(null);
+
   const parentRef = useRef<HTMLDivElement | null>(null);
+  const innerRef = useRef<HTMLDivElement | null>(null);
+
+  const rowRefsMap = useRef(new Map<number, HTMLDivElement>());
 
   const theme = useTheme();
   const isSmallBreakpoint = useMediaQuery(theme.breakpoints.down('md'));
@@ -106,8 +110,26 @@ export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
     getScrollElement: () => parentRef.current,
     estimateSize: () => 150,
     overscan: 2,
-    measureElement,
+    onChange: (instance) => {
+      if (innerRef.current && instance) {
+        innerRef.current.style.height = `${instance.getTotalSize()}px`;
+
+        instance.getVirtualItems().forEach((virtualRow) => {
+          const rowRef = rowRefsMap.current.get(virtualRow.index);
+          if (!rowRef) return;
+          rowRef.style.transform = `translateY(${virtualRow.start}px)`;
+        });
+      }
+    },
   });
+
+  const indices = rowVirtualizer.getVirtualIndexes();
+
+  useEffect(() => {
+    if (fetchMessagesStatus === 'success') {
+      rowVirtualizer?.measure();
+    }
+  }, [fetchMessagesStatus, rowVirtualizer]);
 
   useEffect(() => {
     if (
@@ -262,34 +284,35 @@ export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
       >
         {chatContents.length > 0 ? (
           <Box
+            ref={innerRef}
             sx={{
-              height: `${rowVirtualizer.getTotalSize()}px`,
               width: '100%',
               position: 'relative',
             }}
           >
-            {rowVirtualizer.getVirtualItems().map((virtualItem) => {
-              const message = chatContents[virtualItem.index];
+            {indices.map((index) => {
+              const message = chatContents[index];
               if (!message) return null;
 
-              if (
-                virtualItem.index === chatContents.length - 1 &&
-                !renderedLastMessage
-              ) {
+              if (index === chatContents.length - 1 && !renderedLastMessage) {
                 setRenderedLastMessage(true);
               }
 
               return (
                 <Box
                   key={message.id}
-                  ref={rowVirtualizer.measureElement}
-                  data-index={virtualItem.index}
+                  data-index={index}
+                  ref={(el: HTMLDivElement) => {
+                    if (el) {
+                      rowVirtualizer.measureElement(el);
+                      rowRefsMap.current.set(index, el);
+                    }
+                  }}
                   sx={{
                     position: 'absolute',
                     top: 0,
                     left: 0,
                     width: '100%',
-                    transform: `translateY(${virtualItem.start}px)`,
                     display: 'flex',
                     justifyContent:
                       message.role === 'user' ? 'flex-end' : 'flex-start',
@@ -371,6 +394,7 @@ export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
             sx={{
               display: 'flex',
               flexDirection: 'column',
+              justifyContent: 'center',
               alignItems: 'center',
               flexGrow: 1,
               textAlign: 'center',
