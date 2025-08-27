@@ -25,11 +25,9 @@ import {
 } from '../data/messages/chat-contents-functions.ts';
 import { useConversationsMutations } from '../data/conversations/use-conversations-mutations.ts';
 import { useNavigate } from '@tanstack/react-router';
-import Markdown from 'react-markdown';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { dark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import remarkGfm from 'remark-gfm';
+import { NoMessageScreen } from './no-message-screen.tsx';
+import { useRenderMessage } from './use-render-message.tsx';
 
 type AiContentProps = {
   conversationId?: string;
@@ -243,6 +241,8 @@ export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
     ],
   );
 
+  const { renderMessage } = useRenderMessage();
+
   return (
     <Box
       sx={{
@@ -261,26 +261,7 @@ export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
           p: 2,
         }}
       >
-        {chatContents.length === 0 ? (
-          <Box
-            sx={{
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'center',
-              alignItems: 'center',
-              flexGrow: 1,
-              textAlign: 'center',
-              height: '100%',
-            }}
-          >
-            <Typography variant="h4" gutterBottom>
-              How can I help you today?
-            </Typography>
-            <Typography variant="body1" color="text.secondary">
-              Your AI assistant is ready. Enter a prompt below to begin.
-            </Typography>
-          </Box>
-        ) : null}
+        {chatContents.length === 0 ? <NoMessageScreen /> : null}
         <Box
           ref={innerRef}
           sx={{
@@ -288,92 +269,13 @@ export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
             position: 'relative',
           }}
         >
-          {rowVirtualizer.getVirtualItems().map((virtualItem) => {
-            const message = chatContents[virtualItem.index];
-            if (!message) return null;
-
-            return (
-              <Box
-                key={message.id}
-                data-index={virtualItem.index}
-                ref={rowVirtualizer.measureElement}
-                sx={{
-                  transform: `translateY(${virtualItem.start}px)`,
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  width: '100%',
-                  display: 'flex',
-                  justifyContent:
-                    message.role === 'user' ? 'flex-end' : 'flex-start',
-                  padding: '8px 0',
-                }}
-              >
-                <Box
-                  sx={{
-                    p: 1.5,
-                    borderRadius: 2,
-                    maxWidth: '98%',
-                    bgcolor:
-                      message.role === 'user'
-                        ? 'primary.main'
-                        : 'background.default',
-                    color:
-                      message.role === 'user'
-                        ? 'primary.contrastText'
-                        : 'text.primary',
-                  }}
-                >
-                  {message.role === 'model' ? (
-                    <Markdown
-                      remarkPlugins={[remarkGfm]}
-                      children={message.text}
-                      components={{
-                        pre: ({ children }) => (
-                          <Box sx={{ maxWidth: '100%', overflowX: 'auto' }}>
-                            <pre
-                              style={{
-                                margin: 0,
-                                whiteSpace: 'pre-wrap',
-                              }}
-                            >
-                              {children}
-                            </pre>
-                          </Box>
-                        ),
-                        code(props) {
-                          const { children, className, ...rest } = props;
-                          const match = /language-(\w+)/.exec(className || '');
-                          return match ? (
-                            <SyntaxHighlighter
-                              PreTag="div"
-                              children={String(children).replace(/\n$/, '')}
-                              language={match[1]}
-                              style={
-                                theme.palette.mode === 'dark' ? dark : undefined
-                              }
-                            />
-                          ) : (
-                            <code
-                              {...rest}
-                              className={className}
-                              style={{ wordWrap: 'break-word' }}
-                            >
-                              {children}
-                            </code>
-                          );
-                        },
-                      }}
-                    />
-                  ) : (
-                    <Typography sx={{ whiteSpace: 'pre-wrap' }}>
-                      {message.text}
-                    </Typography>
-                  )}
-                </Box>
-              </Box>
-            );
-          })}
+          {rowVirtualizer.getVirtualItems().map((virtualItem) =>
+            renderMessage({
+              virtualItem,
+              message: chatContents[virtualItem.index],
+              measureElement: rowVirtualizer.measureElement,
+            }),
+          )}
         </Box>
       </Box>
       <Box
