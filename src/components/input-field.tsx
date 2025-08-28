@@ -14,7 +14,7 @@ import CircularProgress from '@mui/material/CircularProgress';
 
 type InputFieldProps = {
   autoFocus?: boolean;
-  disabled?: boolean;
+  disabled: boolean;
   onSubmit: (prompt: string) => Promise<void>;
 };
 
@@ -24,7 +24,7 @@ export type InputFieldRef = {
 };
 
 export const InputField = forwardRef<InputFieldRef, InputFieldProps>(
-  ({ autoFocus = false, disabled = false, onSubmit }, ref) => {
+  ({ autoFocus, disabled = false, onSubmit }, ref) => {
     const inputRef = useRef<HTMLTextAreaElement>(null);
 
     const [prompt, setPrompt] = useState('');
