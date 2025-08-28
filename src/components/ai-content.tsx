@@ -27,7 +27,7 @@ import { useConversationsMutations } from '../data/conversations/use-conversatio
 import { useNavigate } from '@tanstack/react-router';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { NoMessageScreen } from './no-message-screen.tsx';
-import { useRenderMessage } from './use-render-message.tsx';
+import { useRenderMessage } from './hooks/use-render-message.tsx';
 
 type AiContentProps = {
   conversationId?: string;

@@ -1,7 +1,7 @@
 import type { ChatContent } from '@ishtar/commons/types';
 import type { VirtualItem } from '@tanstack/react-virtual';
 import { type JSX, useCallback } from 'react';
-import { Markdown } from './markdown.tsx';
+import { Markdown } from '../markdown.tsx';
 import { Typography, Box } from '@mui/material';
 
 type RenderMessageArgs = {
