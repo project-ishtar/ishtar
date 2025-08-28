@@ -7,13 +7,8 @@ import React, {
   useState,
 } from 'react';
 import { getAiResponse } from '../ai.ts';
-import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
-import { useMediaQuery, useTheme } from '@mui/material';
-import CircularProgress from '@mui/material/CircularProgress';
-import SendIcon from '@mui/icons-material/Send';
-import LoadingButton from '@mui/lab/LoadingButton';
 import type { ChatContent } from '@ishtar/commons/types';
 import { v4 as uuid } from 'uuid';
 import { useCurrentConversation } from '../data/conversations/use-current-conversation.ts';
@@ -28,18 +23,19 @@ import { useNavigate } from '@tanstack/react-router';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { NoMessageScreen } from './no-message-screen.tsx';
 import { useRenderMessage } from './hooks/use-render-message.tsx';
+import { InputField, type InputFieldRef } from './input-field.tsx';
+import { useMediaQuery, useTheme } from '@mui/material';
 
 type AiContentProps = {
   conversationId?: string;
 };
 
 export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
-  const [prompt, setPrompt] = useState<string>();
   const [isPromptSubmitted, setIsPromptSubmitted] = useState(false);
 
   const [fetchedAllMessages, setFetchedAllMessages] = useState(false);
 
-  const inputRef = useRef<HTMLInputElement | null>(null);
+  const inputRef = useRef<InputFieldRef>(null);
 
   const parentRef = useRef<HTMLDivElement | null>(null);
   const innerRef = useRef<HTMLDivElement | null>(null);
@@ -117,8 +113,17 @@ export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
       rowVirtualizer.scrollToIndex(chatContents.length - 1, {
         align: 'start',
       });
+
+      if (!isSmallBreakpoint) {
+        inputRef.current?.focus();
+      }
     }
-  }, [chatContents, messageUpdateMutation.status, rowVirtualizer]);
+  }, [
+    chatContents,
+    isSmallBreakpoint,
+    messageUpdateMutation.status,
+    rowVirtualizer,
+  ]);
 
   useEffect(() => {
     if (
@@ -142,80 +147,57 @@ export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
     fetchedAllMessages,
   ]);
 
-  const onPromptChange = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
-      setPrompt(event.target.value);
-    },
-    [],
-  );
+  const onSubmit = useCallback(
+    async (prompt: string) => {
+      if (prompt) {
+        setIsPromptSubmitted(true);
 
-  const onSubmit = useCallback(async () => {
-    if (prompt) {
-      setIsPromptSubmitted(true);
-
-      if (conversationId) {
-        setPrompt('');
-        messageUpdateMutation.mutate({
-          id: uuid(),
-          text: prompt,
-          role: 'user',
-        });
-      }
-
-      const response = await getAiResponse({
-        prompt,
-        conversationId: conversationId,
-      });
-
-      if (response) {
         if (conversationId) {
+          inputRef.current?.clearPrompt();
           messageUpdateMutation.mutate({
-            id: response.id,
-            role: 'model',
-            text: response.response ?? '',
-          });
-
-          setTokenCount((prevCount) => ({
-            inputTokenCount:
-              prevCount.inputTokenCount + (response.inputTokenCount ?? 0),
-            outputTokenCount:
-              prevCount.outputTokenCount + (response.outputTokenCount ?? 0),
-          }));
-        } else if (response.conversationId) {
-          await fetchAndSetConversation(response.conversationId, {
-            onSettled: (conversation) => {
-              if (conversation?.id) {
-                navigate({
-                  to: '/app/{-$conversationId}',
-                  params: { conversationId: conversation.id },
-                });
-              }
-            },
+            id: uuid(),
+            text: prompt,
+            role: 'user',
           });
         }
-      }
-    }
 
-    setIsPromptSubmitted(false);
-  }, [
-    conversationId,
-    fetchAndSetConversation,
-    messageUpdateMutation,
-    navigate,
-    prompt,
-  ]);
+        const response = await getAiResponse({
+          prompt,
+          conversationId: conversationId,
+        });
 
-  const onInputKeyDown = useCallback(
-    (event: React.KeyboardEvent) => {
-      if (
-        event.metaKey &&
-        event.key === 'Enter' &&
-        !(!prompt || isPromptSubmitted)
-      ) {
-        onSubmit();
+        if (response) {
+          if (conversationId) {
+            messageUpdateMutation.mutate({
+              id: response.id,
+              role: 'model',
+              text: response.response ?? '',
+            });
+
+            setTokenCount((prevCount) => ({
+              inputTokenCount:
+                prevCount.inputTokenCount + (response.inputTokenCount ?? 0),
+              outputTokenCount:
+                prevCount.outputTokenCount + (response.outputTokenCount ?? 0),
+            }));
+          } else if (response.conversationId) {
+            await fetchAndSetConversation(response.conversationId, {
+              onSettled: (conversation) => {
+                if (conversation?.id) {
+                  navigate({
+                    to: '/app/{-$conversationId}',
+                    params: { conversationId: conversation.id },
+                  });
+                }
+              },
+            });
+          }
+        }
       }
+
+      setIsPromptSubmitted(false);
     },
-    [onSubmit, prompt, isPromptSubmitted],
+    [conversationId, fetchAndSetConversation, messageUpdateMutation, navigate],
   );
 
   const onParentScroll = useCallback(
@@ -288,29 +270,12 @@ export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
           flexShrink: 0,
         }}
       >
-        <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
-          <TextField
-            autoFocus={!isSmallBreakpoint}
-            onChange={onPromptChange}
-            onKeyDown={onInputKeyDown}
-            placeholder="Prompt"
-            value={prompt}
-            multiline
-            maxRows={5}
-            inputRef={inputRef}
-            sx={{ flexGrow: 1 }}
-          />
-          <LoadingButton
-            onClick={onSubmit}
-            variant="outlined"
-            color="success"
-            disabled={!prompt || isPromptSubmitted}
-            loading={isPromptSubmitted}
-            loadingIndicator={<CircularProgress size={20} color="info" />}
-          >
-            <SendIcon />
-          </LoadingButton>
-        </Box>
+        <InputField
+          autoFocus={!isSmallBreakpoint}
+          disabled={isPromptSubmitted}
+          onSubmit={onSubmit}
+          ref={inputRef}
+        />
         <Box sx={{ display: 'flex', justifyContent: 'flex-start' }}>
           <Typography variant="caption">
             {`${tokenCount.inputTokenCount} input tokens and ${tokenCount.outputTokenCount} output tokens consumed.`}
