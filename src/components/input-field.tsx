@@ -82,12 +82,12 @@ export const InputField = forwardRef<InputFieldRef, InputFieldProps>(
           }}
         />
         <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
-          <IconButton size="small">
+          <IconButton size="small" disabled>
             <AttachFileIcon />
           </IconButton>
           <Box sx={{ flexGrow: 1 }} />
           {!prompt && disabled ? (
-            <IconButton size="small">
+            <IconButton size="large">
               <CircularProgress size={24} />
             </IconButton>
           ) : null}
@@ -95,14 +95,14 @@ export const InputField = forwardRef<InputFieldRef, InputFieldProps>(
             <IconButton
               disabled={disabled}
               onClick={doSubmit}
-              size="small"
+              size="large"
               sx={{
                 bgcolor: 'primary.main',
                 color: 'primary.contrastText',
                 '&:hover': { bgcolor: 'primary.dark' },
               }}
             >
-              <SendIcon />
+              <SendIcon sx={{ transform: 'translateX(2px)' }} />
             </IconButton>
           ) : null}
         </Box>
