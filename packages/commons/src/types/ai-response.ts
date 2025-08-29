@@ -1,5 +1,6 @@
 export type AiResponse = {
-  id: string;
+  promptId: string;
+  responseId: string;
   response?: string;
   inputTokenCount?: number;
   outputTokenCount?: number;

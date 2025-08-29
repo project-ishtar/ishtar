@@ -352,7 +352,8 @@ export const callAi = onCall<AiRequest>(
     );
 
     return {
-      id: newModelMessageRef.id,
+      promptId: newUserMessageRef.id,
+      responseId: newModelMessageRef.id,
       response: response.text,
       conversationId,
       inputTokenCount: inputTokenCount + summaryInputTokenCount,
