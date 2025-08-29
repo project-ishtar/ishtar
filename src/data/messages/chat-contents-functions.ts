@@ -68,6 +68,3 @@ export const fetchMessages = async ({
     nextCursor: messagesDocs.docs.length < 10 ? undefined : lastVisibleDoc,
   };
 };
-
-export const updateMessage = (chatContent: ChatContent): Promise<ChatContent> =>
-  Promise.resolve(chatContent);
