@@ -59,7 +59,7 @@ export const App = ({ conversationId }: AppProps) => {
         onSettingsClick={() => setSettingsOpen(true)}
         conversationId={conversationId}
       >
-        <AiContent key={conversationId} conversationId={conversationId} />
+        <AiContent key={conversationId} />
       </AppLayout>
       <ChatSettings
         currentUser={userQuery.data}

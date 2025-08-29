@@ -19,7 +19,7 @@ type InputFieldProps = {
 };
 
 export type InputFieldRef = {
-  clearPrompt: () => void;
+  setPrompt: (prompt: string) => void;
   focus: () => void;
 };
 
@@ -45,7 +45,7 @@ export const InputField = forwardRef<InputFieldRef, InputFieldProps>(
     useImperativeHandle(
       ref,
       () => ({
-        clearPrompt: () => setPrompt(''),
+        setPrompt: (prompt) => setPrompt(prompt),
         focus: () => inputRef.current?.focus(),
       }),
       [],
