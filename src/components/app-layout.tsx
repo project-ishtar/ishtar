@@ -26,7 +26,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import { useGetConversations } from '../data/conversations/use-get-conversations.ts';
 import { useNavigate, useRouter } from '@tanstack/react-router';
 import { useAuthenticated } from '../auth/use-auth.ts';
-import { useConversationsMutations } from '../data/conversations/use-conversations-mutations.ts';
+import { useConversations } from '../data/conversations/use-conversations.ts';
 import { useQuery } from '@tanstack/react-query';
 import { currentUserQueryOptions } from '../data/current-user/current-user-functions.ts';
 import Typography from '@mui/material/Typography';
@@ -83,7 +83,7 @@ export const AppLayout = ({
   const router = useRouter();
   const navigate = useNavigate();
 
-  const { deleteConversation } = useConversationsMutations();
+  const { deleteConversation } = useConversations();
 
   const { logout } = useAuthenticated();
 
@@ -117,16 +117,14 @@ export const AppLayout = ({
 
   const doDeleteConversation = useCallback(async () => {
     if (selectedConversationId) {
-      await deleteConversation(selectedConversationId, {
-        onSettled: () => {
-          if (selectedConversationId === conversationId) {
-            navigate({
-              to: '/app/{-$conversationId}',
-              params: { conversationId: undefined },
-            });
-          }
-        },
-      });
+      await deleteConversation(selectedConversationId);
+
+      if (selectedConversationId === conversationId) {
+        navigate({
+          to: '/app/{-$conversationId}',
+          params: { conversationId: undefined },
+        });
+      }
     }
 
     handleMenuClose();

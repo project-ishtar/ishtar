@@ -24,7 +24,7 @@ import {
   type MessagePage,
   updateMessage,
 } from '../data/messages/chat-contents-functions.ts';
-import { useConversationsMutations } from '../data/conversations/use-conversations-mutations.ts';
+import { useConversations } from '../data/conversations/use-conversations.ts';
 import { useNavigate } from '@tanstack/react-router';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { NoMessageScreen } from './no-message-screen.tsx';
@@ -80,9 +80,6 @@ export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
 
   const chatContents = useMemo(() => data ?? [], [data]);
 
-  console.log(chatContents);
-  console.log(status);
-
   const messageUpdateMutation = useMutation({
     mutationFn: updateMessage,
     onSuccess: (newMessage) => {
@@ -109,7 +106,7 @@ export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
     },
   });
 
-  const { fetchAndSetConversation } = useConversationsMutations();
+  const { fetchConversation } = useConversations();
   const conversation = useCurrentConversation();
   const navigate = useNavigate();
 
@@ -199,23 +196,23 @@ export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
                 prevCount.outputTokenCount + (response.outputTokenCount ?? 0),
             }));
           } else if (response.conversationId) {
-            await fetchAndSetConversation(response.conversationId, {
-              onSettled: (conversation) => {
-                if (conversation?.id) {
-                  navigate({
-                    to: '/app/{-$conversationId}',
-                    params: { conversationId: conversation.id },
-                  });
-                }
-              },
-            });
+            const conversation = await fetchConversation(
+              response.conversationId,
+            );
+
+            if (conversation?.id) {
+              navigate({
+                to: '/app/{-$conversationId}',
+                params: { conversationId: conversation.id },
+              });
+            }
           }
         }
       }
 
       setIsPromptSubmitted(false);
     },
-    [conversationId, fetchAndSetConversation, messageUpdateMutation, navigate],
+    [conversationId, fetchConversation, messageUpdateMutation, navigate],
   );
 
   const onParentScroll = useCallback(
