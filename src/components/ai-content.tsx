@@ -6,7 +6,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { getAiResponse } from '../ai.ts';
+import { getAiResponse as callAi } from '../ai.ts';
 import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
 import { v4 as uuid } from 'uuid';
@@ -35,6 +35,8 @@ import { useMediaQuery, useTheme } from '@mui/material';
 type AiContentProps = {
   conversationId?: string;
 };
+
+const TEMP_PROMPT_ID = 'prompt_id';
 
 export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
   const [isPromptSubmitted, setIsPromptSubmitted] = useState(false);
@@ -79,6 +81,45 @@ export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
   });
 
   const chatContents = useMemo(() => data ?? [], [data]);
+
+  const getResponseFromAi = useCallback(
+    async (prompt: string) => await callAi({ prompt, conversationId }),
+    [conversationId],
+  );
+
+  const messageUpdateMutation2 = useMutation({
+    mutationFn: getResponseFromAi,
+    onMutate: (prompt) => {
+      if (!conversationId) return;
+
+      queryClient.setQueryData<InfiniteData<MessagePage>>(
+        chatContentsQuery,
+        (oldData) => {
+          inputRef.current?.clearPrompt();
+
+          if (!oldData || oldData.pages.length === 0) {
+            return { pages: [], pageParams: [undefined] };
+          }
+
+          const newPages = [...oldData.pages];
+          const lastPageIndex = newPages.length - 1;
+          const lastPage = newPages[lastPageIndex];
+
+          newPages[lastPageIndex] = {
+            ...lastPage,
+            messages: [
+              ...lastPage.messages,
+              { id: TEMP_PROMPT_ID, text: prompt, role: 'user' },
+            ],
+          };
+
+          return { ...oldData, pages: newPages };
+        },
+      );
+    },
+
+    onSuccess: (response) => {},
+  });
 
   const messageUpdateMutation = useMutation({
     mutationFn: updateMessage,
@@ -176,9 +217,9 @@ export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
           });
         }
 
-        const response = await getAiResponse({
+        const response = await callAi({
           prompt,
-          conversationId: conversationId,
+          conversationId,
         });
 
         if (response) {
