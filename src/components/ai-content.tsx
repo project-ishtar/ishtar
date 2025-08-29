@@ -264,7 +264,9 @@ export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
           p: 2,
         }}
       >
-        {chatContents.length === 0 ? <NoMessageScreen /> : null}
+        {status === 'success' && chatContents.length === 0 ? (
+          <NoMessageScreen />
+        ) : null}
         <Box
           ref={innerRef}
           sx={{
