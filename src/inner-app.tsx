@@ -5,7 +5,9 @@ import { useAuth } from './auth/use-auth.ts';
 import { LoadingSpinner } from './components/loading-spinner.tsx';
 import { defaultAuthValues } from './auth/auth-context.tsx';
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { refetchOnWindowFocus: false } },
+});
 
 const router = createRouter({
   routeTree,

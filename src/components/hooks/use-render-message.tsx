@@ -7,31 +7,31 @@ import { Typography, Box } from '@mui/material';
 type RenderMessageArgs = {
   virtualItem: VirtualItem;
   message?: ChatContent;
-  measureElement: (node: Element | null | undefined) => void;
 };
 
 type UseRenderMessageReturn = {
   renderMessage: (args: RenderMessageArgs) => JSX.Element | null;
 };
 
-export const useRenderMessage = (): UseRenderMessageReturn => {
+type UseRenderMessageProps = {
+  measureElement: (
+    node: HTMLDivElement | null | undefined,
+    messageId: string,
+  ) => void;
+};
+
+export const useRenderMessage = ({
+  measureElement,
+}: UseRenderMessageProps): UseRenderMessageReturn => {
   const renderMessage = useCallback(
-    ({
-      virtualItem,
-      message,
-      measureElement,
-    }: {
-      virtualItem: VirtualItem;
-      message?: ChatContent;
-      measureElement: (node: Element | null | undefined) => void;
-    }): JSX.Element | null => {
+    ({ virtualItem, message }: RenderMessageArgs): JSX.Element | null => {
       if (!message) return null;
 
       return (
         <Box
           key={message.id}
           data-index={virtualItem.index}
-          ref={measureElement}
+          ref={(el: HTMLDivElement) => measureElement(el, message.id)}
           sx={{
             transform: `translateY(${virtualItem.start}px)`,
             position: 'absolute',
@@ -67,7 +67,7 @@ export const useRenderMessage = (): UseRenderMessageReturn => {
         </Box>
       );
     },
-    [],
+    [measureElement],
   );
 
   return { renderMessage };

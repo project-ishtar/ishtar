@@ -37,6 +37,8 @@ export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
 
   const inputRef = useRef<InputFieldRef>(null);
 
+  const elementHeightCacheRef = useRef(new Map<string, number>());
+
   const parentRef = useRef<HTMLDivElement | null>(null);
   const innerRef = useRef<HTMLDivElement | null>(null);
 
@@ -88,7 +90,16 @@ export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
   const rowVirtualizer = useVirtualizer({
     count: chatContents.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 150,
+    estimateSize: useCallback(
+      (index) => {
+        const message = chatContents[index];
+
+        if (!message) return 150;
+
+        return elementHeightCacheRef.current.get(message.id) ?? 150;
+      },
+      [chatContents],
+    ),
     overscan: 2,
   });
 
@@ -223,7 +234,23 @@ export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
     ],
   );
 
-  const { renderMessage } = useRenderMessage();
+  const measureElement = useCallback(
+    (element: HTMLDivElement | null | undefined, messageId: string) => {
+      if (element) {
+        rowVirtualizer.measureElement(element);
+
+        const newHeight = element.offsetHeight;
+        const cachedHeight = elementHeightCacheRef.current.get(messageId);
+
+        if (cachedHeight !== newHeight) {
+          elementHeightCacheRef.current.set(messageId, newHeight);
+        }
+      }
+    },
+    [rowVirtualizer],
+  );
+
+  const { renderMessage } = useRenderMessage({ measureElement });
 
   return (
     <Box
@@ -255,7 +282,6 @@ export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
             renderMessage({
               virtualItem,
               message: chatContents[virtualItem.index],
-              measureElement: rowVirtualizer.measureElement,
             }),
           )}
         </Box>
