@@ -1,10 +1,7 @@
-import { useAuthenticated } from '../../auth/use-auth.ts';
-import { useQuery } from '@tanstack/react-query';
-import { conversationsQueryOptions } from './conversations-functions.ts';
 import type { Conversation } from '@ishtar/commons/types';
+import { useConversations } from './use-conversations.ts';
 
 export const useGetConversations = (): Conversation[] => {
-  const currentUserUid = useAuthenticated().currentUserUid;
-  const conversations = useQuery(conversationsQueryOptions(currentUserUid));
-  return conversations.status === 'success' ? conversations.data : [];
+  const { conversationsQuery } = useConversations();
+  return conversationsQuery.status === 'success' ? conversationsQuery.data : [];
 };

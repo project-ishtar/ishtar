@@ -26,7 +26,7 @@ import type {
 } from '@ishtar/commons/types';
 import { getGlobalSettings } from '../data/global-settings.ts';
 import { useCurrentConversation } from '../data/conversations/use-current-conversation.ts';
-import { useConversationsMutations } from '../data/conversations/use-conversations-mutations.ts';
+import { useConversations } from '../data/conversations/use-conversations.ts';
 import { useNavigate } from '@tanstack/react-router';
 
 type ChatSettingsProps = {
@@ -83,7 +83,7 @@ export const ChatSettings = ({
         : globalSettings.openAIReasoningEffort,
     );
 
-  const { addConversation, updateConversation } = useConversationsMutations();
+  const { persistConversation, updateConversation } = useConversations();
 
   const navigate = useNavigate();
 
@@ -131,18 +131,16 @@ export const ChatSettings = ({
         outputTokenCount: 0,
       };
 
-      await addConversation(newConversation, {
-        onSettled: (conversation) => {
-          if (conversation?.id) {
-            navigate({
-              to: '/app/{-$conversationId}',
-              params: { conversationId: conversation.id },
-            });
+      const persistedConversation = await persistConversation(newConversation);
 
-            onClose();
-          }
-        },
-      });
+      if (persistedConversation?.id) {
+        navigate({
+          to: '/app/{-$conversationId}',
+          params: { conversationId: persistedConversation.id },
+        });
+
+        onClose();
+      }
     } else {
       const convoToUpdate: Partial<Conversation> = {
         lastUpdated: new Date(),
@@ -157,21 +155,22 @@ export const ChatSettings = ({
         },
       };
 
-      await updateConversation(conversationId, convoToUpdate, {
-        onSettled: (conversation) => {
-          if (conversation?.id) {
-            navigate({
-              to: '/app/{-$conversationId}',
-              params: { conversationId: conversation.id },
-            });
+      const conversation = await updateConversation(
+        conversationId,
+        convoToUpdate,
+      );
 
-            onClose();
-          }
-        },
-      });
+      if (conversation?.id) {
+        navigate({
+          to: '/app/{-$conversationId}',
+          params: { conversationId: conversation.id },
+        });
+
+        onClose();
+      }
     }
   }, [
-    addConversation,
+    persistConversation,
     chatTitle,
     conversationId,
     enableMultiTurnConversation,

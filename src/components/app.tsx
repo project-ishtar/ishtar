@@ -6,9 +6,9 @@ import { LoadingSpinner } from './loading-spinner.tsx';
 import { useQuery } from '@tanstack/react-query';
 import { currentUserQueryOptions } from '../data/current-user/current-user-functions.ts';
 import { useAuthenticated } from '../auth/use-auth.ts';
-import { conversationsQueryOptions } from '../data/conversations/conversations-functions.ts';
 import { useCurrentConversation } from '../data/conversations/use-current-conversation.ts';
 import { Navigate } from '@tanstack/react-router';
+import { useConversations } from '../data/conversations/use-conversations.ts';
 
 type AppProps = {
   conversationId?: string;
@@ -19,7 +19,7 @@ export const App = ({ conversationId }: AppProps) => {
 
   const currentUserUid = useAuthenticated().currentUserUid;
 
-  const conversations = useQuery(conversationsQueryOptions(currentUserUid));
+  const { conversationsQuery } = useConversations();
   const userQuery = useQuery(currentUserQueryOptions(currentUserUid));
 
   const currentConversation = useCurrentConversation();
@@ -30,18 +30,18 @@ export const App = ({ conversationId }: AppProps) => {
     }
   }, [userQuery]);
 
-  if (conversations.isPending || userQuery.isPending) {
+  if (conversationsQuery.isPending || userQuery.isPending) {
     return <LoadingSpinner />;
   }
 
-  if (conversations.error) {
-    throw new Error('Unable to fetch conversations');
+  if (conversationsQuery.error) {
+    throw new Error('Unable to fetch conversationsQuery');
   } else if (userQuery.error) {
     throw new Error('Unable to fetch user');
   }
 
   if (
-    conversations.status === 'success' &&
+    conversationsQuery.status === 'success' &&
     conversationId &&
     !currentConversation
   ) {
