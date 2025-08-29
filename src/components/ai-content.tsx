@@ -187,7 +187,7 @@ export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
         if (response) {
           if (conversationId) {
             messageUpdateMutation.mutate({
-              id: response.id,
+              id: response.responseId,
               role: 'model',
               text: response.response ?? '',
             });
