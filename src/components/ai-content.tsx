@@ -9,13 +9,19 @@ import React, {
 import { getAiResponse } from '../ai.ts';
 import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
-import type { ChatContent } from '@ishtar/commons/types';
 import { v4 as uuid } from 'uuid';
 import { useCurrentConversation } from '../data/conversations/use-current-conversation.ts';
 import { useAuthenticated } from '../auth/use-auth.ts';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  type InfiniteData,
+  useInfiniteQuery,
+  useMutation,
+  useQueryClient,
+} from '@tanstack/react-query';
+import {
+  type Cursor,
   fetchMessages,
+  type MessagePage,
   updateMessage,
 } from '../data/messages/chat-contents-functions.ts';
 import { useConversationsMutations } from '../data/conversations/use-conversations-mutations.ts';
@@ -33,12 +39,8 @@ type AiContentProps = {
 export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
   const [isPromptSubmitted, setIsPromptSubmitted] = useState(false);
 
-  const [fetchedAllMessages, setFetchedAllMessages] = useState(false);
-
   const inputRef = useRef<InputFieldRef>(null);
-
   const elementHeightCacheRef = useRef(new Map<string, number>());
-
   const parentRef = useRef<HTMLDivElement | null>(null);
   const innerRef = useRef<HTMLDivElement | null>(null);
 
@@ -55,25 +57,54 @@ export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
     [conversationId, currentUserUid],
   );
 
-  const { data: chatContents = [], status: fetchMessagesStatus } = useQuery({
+  const {
+    data,
+    status,
+    hasPreviousPage,
+    isFetchingPreviousPage,
+    fetchPreviousPage,
+  } = useInfiniteQuery({
     queryKey: chatContentsQuery,
-    queryFn: () => fetchMessages({ currentUserUid, conversationId }),
+    queryFn: ({ pageParam }) =>
+      fetchMessages({
+        currentUserUid,
+        conversationId,
+        cursor: pageParam,
+      }),
+    initialPageParam: undefined,
+    getPreviousPageParam: (firstPage) => firstPage.nextCursor,
+    getNextPageParam: (): Cursor => undefined,
+    select: (data) => data.pages.flatMap((page) => page.messages),
+    staleTime: Infinity,
   });
+
+  const chatContents = useMemo(() => data ?? [], [data]);
+
+  console.log(chatContents);
+  console.log(status);
 
   const messageUpdateMutation = useMutation({
     mutationFn: updateMessage,
     onSuccess: (newMessage) => {
-      queryClient.setQueryData<ChatContent[]>(chatContentsQuery, (messages) =>
-        messages ? [...messages, newMessage] : [newMessage],
-      );
-    },
-  });
+      queryClient.setQueryData<InfiniteData<MessagePage>>(
+        chatContentsQuery,
+        (oldData) => {
+          if (!oldData || oldData.pages.length === 0) return;
 
-  const fetchMoreMessagesMutation = useMutation({
-    mutationFn: fetchMessages,
-    onSuccess: (prevMessages) => {
-      queryClient.setQueryData<ChatContent[]>(chatContentsQuery, (messages) =>
-        messages ? [...prevMessages, ...messages] : [...prevMessages],
+          const newPages = [...oldData.pages];
+          const lastPageIndex = newPages.length - 1;
+          const lastPage = newPages[lastPageIndex];
+
+          newPages[lastPageIndex] = {
+            ...lastPage,
+            messages: [...lastPage.messages, newMessage],
+          };
+
+          return {
+            ...oldData,
+            pages: newPages,
+          };
+        },
       );
     },
   });
@@ -104,16 +135,14 @@ export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
   });
 
   useEffect(() => {
-    if (fetchMessagesStatus === 'success' && !initScrolled) {
+    if (status === 'success' && !initScrolled) {
       setInitScrolled(true);
 
       if (chatContents.length > 0) {
-        rowVirtualizer.scrollToIndex(chatContents.length - 1, {
-          align: 'start',
-        });
+        rowVirtualizer.scrollToIndex(chatContents.length - 1);
       }
     }
-  }, [chatContents.length, fetchMessagesStatus, initScrolled, rowVirtualizer]);
+  }, [chatContents.length, initScrolled, rowVirtualizer, status]);
 
   useEffect(() => {
     if (
@@ -134,28 +163,6 @@ export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
     isSmallBreakpoint,
     messageUpdateMutation.status,
     rowVirtualizer,
-  ]);
-
-  useEffect(() => {
-    if (
-      fetchMessagesStatus === 'success' &&
-      chatContents.length < 10 &&
-      !fetchedAllMessages
-    ) {
-      setFetchedAllMessages(true);
-    } else if (
-      fetchMoreMessagesMutation.status === 'success' &&
-      fetchMoreMessagesMutation.data.length < 10 &&
-      !fetchedAllMessages
-    ) {
-      setFetchedAllMessages(true);
-    }
-  }, [
-    chatContents.length,
-    fetchMessagesStatus,
-    fetchMoreMessagesMutation.data,
-    fetchMoreMessagesMutation.status,
-    fetchedAllMessages,
   ]);
 
   const onSubmit = useCallback(
@@ -215,23 +222,13 @@ export const AiContent = ({ conversationId }: AiContentProps): JSX.Element => {
     (event: React.UIEvent<HTMLDivElement>) => {
       if (
         event.currentTarget.scrollTop === 0 &&
-        !fetchedAllMessages &&
-        fetchMoreMessagesMutation.status !== 'pending'
+        hasPreviousPage &&
+        !isFetchingPreviousPage
       ) {
-        fetchMoreMessagesMutation.mutate({
-          currentUserUid,
-          conversationId,
-          messageId: chatContents[0].id,
-        });
+        fetchPreviousPage();
       }
     },
-    [
-      chatContents,
-      conversationId,
-      currentUserUid,
-      fetchMoreMessagesMutation,
-      fetchedAllMessages,
-    ],
+    [fetchPreviousPage, hasPreviousPage, isFetchingPreviousPage],
   );
 
   const measureElement = useCallback(
