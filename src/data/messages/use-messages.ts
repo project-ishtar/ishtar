@@ -10,7 +10,7 @@ import {
   type Cursor,
   fetchMessages,
   type MessagePage,
-} from './chat-contents-functions.ts';
+} from './messages-functions.ts';
 import { type RefObject, useCallback, useMemo } from 'react';
 import { getAiResponse as callAi } from '../../ai.ts';
 import type { InputFieldRef } from '../../components/input-field.tsx';
@@ -20,7 +20,7 @@ import type { Message } from '@ishtar/commons/types';
 
 const TEMP_PROMPT_ID = 'prompt_id';
 
-type UseChatContentsProps = {
+type UseMessagesProps = {
   inputFieldRef: RefObject<InputFieldRef | null>;
   onTokenCountUpdate: (
     inputTokenCount: number,
@@ -28,8 +28,8 @@ type UseChatContentsProps = {
   ) => void;
 };
 
-type UseChatContentsResult = {
-  chatContents: Message[];
+type UseMessagesResult = {
+  messages: Message[];
   status: 'error' | 'success' | 'pending';
   mutationStatus: 'idle' | 'pending' | 'error' | 'success';
   hasPreviousPage: boolean;
@@ -38,10 +38,10 @@ type UseChatContentsResult = {
   mutate: (prompt: string) => void;
 };
 
-export const useChatContents = ({
+export const useMessages = ({
   inputFieldRef,
   onTokenCountUpdate,
-}: UseChatContentsProps): UseChatContentsResult => {
+}: UseMessagesProps): UseMessagesResult => {
   const currentUserUid = useAuthenticated().currentUserUid;
   const { conversationId } = Route.useParams();
   const navigate = useNavigate();
@@ -72,7 +72,7 @@ export const useChatContents = ({
     staleTime: Infinity,
   });
 
-  const chatContents = useMemo(() => data ?? [], [data]);
+  const messages = useMemo(() => data ?? [], [data]);
 
   const getResponseFromAi = useCallback(
     async (prompt: string) => await callAi({ prompt, conversationId }),
@@ -227,7 +227,7 @@ export const useChatContents = ({
 
   return useMemo(
     () => ({
-      chatContents,
+      messages,
       status,
       mutationStatus: messageUpdateMutation.status,
       hasPreviousPage,
@@ -236,7 +236,7 @@ export const useChatContents = ({
       mutate,
     }),
     [
-      chatContents,
+      messages,
       fetchPreviousPage,
       hasPreviousPage,
       isFetchingPreviousPage,

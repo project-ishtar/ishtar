@@ -13,7 +13,7 @@ import { NoMessageScreen } from './no-message-screen.tsx';
 import { useRenderMessage } from './hooks/use-render-message.tsx';
 import { InputField, type InputFieldRef } from './input-field.tsx';
 import { useMediaQuery, useTheme } from '@mui/material';
-import { useChatContents } from '../data/messages/use-chat-contents.ts';
+import { useMessages } from '../data/messages/use-messages.ts';
 
 export const AiContent = (): JSX.Element => {
   const inputFieldRef = useRef<InputFieldRef>(null);
@@ -36,14 +36,14 @@ export const AiContent = (): JSX.Element => {
   );
 
   const {
-    chatContents,
+    messages,
     hasPreviousPage,
     isFetchingPreviousPage,
     fetchPreviousPage,
     status,
     mutationStatus,
     mutate,
-  } = useChatContents({
+  } = useMessages({
     inputFieldRef,
     onTokenCountUpdate: updateTokenCount,
   });
@@ -56,17 +56,17 @@ export const AiContent = (): JSX.Element => {
   });
 
   const rowVirtualizer = useVirtualizer({
-    count: chatContents.length,
+    count: messages.length,
     getScrollElement: () => parentRef.current,
     estimateSize: useCallback(
       (index) => {
-        const message = chatContents[index];
+        const message = messages[index];
 
         if (!message) return 150;
 
         return elementHeightCacheRef.current.get(message.id) ?? 150;
       },
-      [chatContents],
+      [messages],
     ),
     overscan: 2,
   });
@@ -75,19 +75,19 @@ export const AiContent = (): JSX.Element => {
     if (status === 'success' && !initScrolled) {
       setInitScrolled(true);
 
-      if (chatContents.length > 0) {
-        rowVirtualizer.scrollToIndex(chatContents.length - 1);
+      if (messages.length > 0) {
+        rowVirtualizer.scrollToIndex(messages.length - 1);
       }
     }
-  }, [chatContents.length, initScrolled, rowVirtualizer, status]);
+  }, [messages.length, initScrolled, rowVirtualizer, status]);
 
   useEffect(() => {
     if (
       mutationStatus === 'success' &&
-      chatContents.length > 0 &&
-      chatContents[chatContents.length - 1].role === 'model'
+      messages.length > 0 &&
+      messages[messages.length - 1].role === 'model'
     ) {
-      rowVirtualizer.scrollToIndex(chatContents.length - 1, {
+      rowVirtualizer.scrollToIndex(messages.length - 1, {
         align: 'start',
       });
 
@@ -95,7 +95,7 @@ export const AiContent = (): JSX.Element => {
         inputFieldRef.current?.focus();
       }
     }
-  }, [chatContents, isSmallBreakpoint, mutationStatus, rowVirtualizer]);
+  }, [messages, isSmallBreakpoint, mutationStatus, rowVirtualizer]);
 
   const onSubmit = useCallback(
     async (prompt: string) => {
@@ -155,7 +155,7 @@ export const AiContent = (): JSX.Element => {
           p: 2,
         }}
       >
-        {status === 'success' && chatContents.length === 0 ? (
+        {status === 'success' && messages.length === 0 ? (
           <NoMessageScreen />
         ) : null}
         <Box
@@ -168,7 +168,7 @@ export const AiContent = (): JSX.Element => {
           {rowVirtualizer.getVirtualItems().map((virtualItem) =>
             renderMessage({
               virtualItem,
-              message: chatContents[virtualItem.index],
+              message: messages[virtualItem.index],
             }),
           )}
         </Box>
