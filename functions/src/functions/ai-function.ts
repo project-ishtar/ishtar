@@ -52,7 +52,9 @@ function getContentsArray(
       if (message.role !== 'system') {
         contents.push({
           role: message.role,
-          parts: [{ text: message.content }],
+          parts: message.contents
+            .filter((content) => content.type === 'text')
+            .map((content) => ({ text: content.text })),
         });
       }
     }
@@ -205,7 +207,7 @@ export const callAi = onCall<AiRequest>(
 
     batch.set(newUserMessageRef, {
       role: 'user',
-      content: prompt,
+      contents: [{ type: 'text', text: prompt }],
       timestamp: new Date(),
       tokenCount: null,
       isSummary: false,
@@ -275,7 +277,7 @@ export const callAi = onCall<AiRequest>(
 
     batch.set(newModelMessageRef, {
       role: 'model',
-      content: response.text ?? '',
+      contents: [{ type: 'text', text: response.text ?? '' }],
       timestamp: new Date(),
       tokenCount: outputTokenCount,
       isSummary: false,
@@ -419,7 +421,7 @@ async function generateSummary({
   const newSystemMessageRef = messagesRef.doc();
   batch.set(newSystemMessageRef, {
     role: 'system',
-    content: summarizationPrompt,
+    contents: [{ type: 'text', text: summarizationPrompt }],
     timestamp: new Date(),
     tokenCount: null,
     isSummary: false,
@@ -453,7 +455,7 @@ async function generateSummary({
     const newModelSummarizedMessageRef = messagesRef.doc();
     batch.set(newModelSummarizedMessageRef, {
       role: 'model',
-      content: summaryResponse.text ?? '',
+      contents: [{ type: 'text', text: summaryResponse.text }],
       timestamp: new Date(),
       tokenCount: outputTokenCount,
       isSummary: true,

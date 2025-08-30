@@ -23,6 +23,18 @@ type UseRenderMessageProps = {
 export const useRenderMessage = ({
   measureElement,
 }: UseRenderMessageProps): UseRenderMessageReturn => {
+  const renderModelText = (message: ChatContent) =>
+    message.contents
+      .filter((content) => content.type === 'text')
+      .map((content) => <Markdown text={content.text} />);
+
+  const renderUserText = (message: ChatContent) =>
+    message.contents
+      .filter((content) => content.type === 'text')
+      .map((content) => (
+        <Typography sx={{ whiteSpace: 'pre-wrap' }}>{content.text}</Typography>
+      ));
+
   const renderMessage = useCallback(
     ({ virtualItem, message }: RenderMessageArgs): JSX.Element | null => {
       if (!message) return null;
@@ -56,13 +68,11 @@ export const useRenderMessage = ({
                   : 'text.primary',
             }}
           >
-            {message.role === 'model' ? (
-              <Markdown text={message.text} />
-            ) : (
-              <Typography sx={{ whiteSpace: 'pre-wrap' }}>
-                {message.text}
-              </Typography>
-            )}
+            <>
+              {message.role === 'model'
+                ? renderModelText(message)
+                : renderUserText(message)}
+            </>
           </Box>
         </Box>
       );

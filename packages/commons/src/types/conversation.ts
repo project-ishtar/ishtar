@@ -11,10 +11,16 @@ export type ChatSettings = {
 
 export type Role = 'user' | 'model' | 'system';
 
+type TextContent = { type: 'text'; text: string };
+type ImageContent = { type: 'image'; imageUrl: { url: string } };
+type DocumentContent = { type: 'text'; text: string; sourceFileUrl: string };
+
+export type Content = TextContent | ImageContent | DocumentContent;
+
 export type Message = {
   id: string;
   role: Role;
-  content: string;
+  contents: Content[];
   timestamp: Date;
   tokenCount: number | null;
   isSummary: boolean | null;
@@ -33,3 +39,4 @@ export type Conversation = {
 };
 
 export type DraftConversation = Omit<Conversation, 'id'>;
+export type DraftMessage = Omit<Message, 'id'>;
