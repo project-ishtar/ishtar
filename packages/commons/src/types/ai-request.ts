@@ -1,4 +1,4 @@
 export type AiRequest = {
-  prompt: string;
-  conversationId?: string;
+  promptMessageId: string;
+  conversationId: string;
 };

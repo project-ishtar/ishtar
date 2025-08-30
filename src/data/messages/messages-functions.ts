@@ -1,8 +1,11 @@
-import type { Message } from '@ishtar/commons/types';
+import type { DraftMessage, Message } from '@ishtar/commons/types';
 import { firebaseApp } from '../../firebase.ts';
 import {
+  addDoc,
   and,
   collection,
+  doc,
+  getDoc,
   getDocs,
   limit,
   orderBy,
@@ -60,4 +63,56 @@ export const fetchMessages = async ({
     messages,
     nextCursor: messagesDocs.docs.length < 10 ? undefined : lastVisibleDoc,
   };
+};
+
+export const fetchMessage = async ({
+  currentUserUid,
+  conversationId,
+  messageId,
+}: {
+  currentUserUid: string;
+  conversationId: string;
+  messageId: string;
+}): Promise<Message> => {
+  const messageRef = doc(
+    firebaseApp.firestore,
+    'users',
+    currentUserUid,
+    'conversations',
+    conversationId,
+    'messages',
+    messageId,
+  ).withConverter(messageConverter);
+
+  const messageDoc = await getDoc(messageRef);
+
+  return messageDoc.data() as Message;
+};
+
+export const persistMessage = async ({
+  currentUserUid,
+  conversationId,
+  draftMessage,
+}: {
+  currentUserUid: string;
+  conversationId: string;
+  draftMessage: DraftMessage;
+}): Promise<Message> => {
+  const newMessageRef = await addDoc(
+    collection(
+      firebaseApp.firestore,
+      'users',
+      currentUserUid,
+      'conversations',
+      conversationId,
+      'messages',
+    ).withConverter(messageConverter),
+    draftMessage,
+  );
+
+  return await fetchMessage({
+    currentUserUid,
+    conversationId,
+    messageId: newMessageRef.id,
+  });
 };

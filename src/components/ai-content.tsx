@@ -98,9 +98,9 @@ export const AiContent = (): JSX.Element => {
   }, [messages, isSmallBreakpoint, mutationStatus, rowVirtualizer]);
 
   const onSubmit = useCallback(
-    async (prompt: string) => {
-      if (prompt) {
-        mutate(prompt);
+    async (prompt: string, files: File[]) => {
+      if (prompt || files.length > 0) {
+        mutate(prompt, files);
       }
     },
     [mutate],

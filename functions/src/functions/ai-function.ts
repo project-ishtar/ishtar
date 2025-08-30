@@ -5,7 +5,6 @@ import {
   AiRequest,
   AiResponse,
   Conversation,
-  DraftConversation,
   Message,
 } from '@ishtar/commons/types';
 import { db } from '../index';
@@ -76,43 +75,12 @@ export const callAi = onCall<AiRequest>(
     const user = await getUserById(request.auth.uid);
     const globalSettings = getGlobalSettings(user.role);
 
-    const { prompt, conversationId: convoId } = request.data;
+    const { promptMessageId, conversationId } = request.data;
 
     const conversationsRef = db
       .collection('users')
       .doc(request.auth.uid)
       .collection('conversations');
-
-    let conversationId = convoId;
-
-    if (!conversationId) {
-      const newConversationRef = conversationsRef.doc();
-
-      const newConversation: DraftConversation = {
-        createdAt:
-          admin.firestore.FieldValue.serverTimestamp() as unknown as Date,
-        lastUpdated:
-          admin.firestore.FieldValue.serverTimestamp() as unknown as Date,
-        isDeleted: false,
-        title: `New Chat - ${Date.now()}`,
-        chatSettings: {
-          model: globalSettings.defaultModel,
-          temperature: globalSettings.temperature,
-          systemInstruction: null,
-          enableMultiTurnConversation:
-            globalSettings.enableMultiTurnConversation,
-          enableThinking: globalSettings.enableThinking,
-          thinkingCapacity: null,
-        },
-        summarizedMessageId: null,
-        inputTokenCount: 0,
-        outputTokenCount: 0,
-      };
-
-      conversationId = newConversationRef.id;
-
-      await newConversationRef.set(newConversation);
-    }
 
     const conversationRef = conversationsRef.doc(conversationId);
     const conversationData = await conversationRef.get();
@@ -129,6 +97,18 @@ export const callAi = onCall<AiRequest>(
     const messagesRef = conversationRef
       .collection('messages')
       .withConverter(chatMessageConverter);
+
+    const promptMessageRef = messagesRef.doc(promptMessageId);
+    const promptMessage = await promptMessageRef.get();
+
+    if (!promptMessage.exists) {
+      throw new HttpsError(
+        'permission-denied',
+        `Prompt with ID ${promptMessageId} is not found.`,
+      );
+    }
+
+    const prompt = promptMessage.data() as Message;
 
     let messagesInOrderDoc: admin.firestore.QuerySnapshot<
       Message,
@@ -157,21 +137,6 @@ export const callAi = onCall<AiRequest>(
           .doc(conversation.summarizedMessageId)
           .get();
 
-        messagesInOrderDoc = await messagesRef
-          .orderBy('timestamp', 'asc')
-          .orderBy(admin.firestore.FieldPath.documentId())
-          .startAt(summarizedMessageDoc)
-          .get();
-
-        tokenCount += countTokens(messagesInOrderDoc);
-
-        const contentsArray = getContentsArray(messagesInOrderDoc);
-
-        const summaryContent = contentsArray[0];
-        const contentsAfterSummary = contentsArray.splice(1);
-
-        contents.push(summaryContent);
-
         const previousMessagesInOrderSnapshot = await messagesRef
           .orderBy('timestamp', 'desc')
           .orderBy(admin.firestore.FieldPath.documentId())
@@ -185,7 +150,15 @@ export const callAi = onCall<AiRequest>(
           ...getContentsArray(previousMessagesInOrderSnapshot).reverse(),
         );
 
-        contents.push(...contentsAfterSummary);
+        messagesInOrderDoc = await messagesRef
+          .orderBy('timestamp', 'asc')
+          .orderBy(admin.firestore.FieldPath.documentId())
+          .startAt(summarizedMessageDoc)
+          .get();
+
+        tokenCount += countTokens(messagesInOrderDoc);
+
+        contents.push(...getContentsArray(messagesInOrderDoc));
       } else {
         messagesInOrderDoc = await messagesRef
           .orderBy('timestamp', 'asc')
@@ -195,23 +168,16 @@ export const callAi = onCall<AiRequest>(
 
         contents.push(...getContentsArray(messagesInOrderDoc));
       }
+    } else {
+      contents.push({
+        role: 'user',
+        parts: prompt.contents
+          .filter((content) => content.type === 'text')
+          .map((content) => ({ text: content.text })),
+      });
     }
 
-    contents.push({ role: 'user', parts: [{ text: prompt }] });
-
     console.log(`contents length: ${contents.length}`);
-
-    const batch = db.batch();
-
-    const newUserMessageRef = messagesRef.doc();
-
-    batch.set(newUserMessageRef, {
-      role: 'user',
-      contents: [{ type: 'text', text: prompt }],
-      timestamp: new Date(),
-      tokenCount: null,
-      isSummary: false,
-    } as Message);
 
     if (!geminiAI) {
       geminiAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
@@ -256,7 +222,9 @@ export const callAi = onCall<AiRequest>(
 
     console.log(`Usage metadata: ${JSON.stringify(response.usageMetadata)}`);
 
-    batch.update(newUserMessageRef, {
+    const batch = db.batch();
+
+    batch.update(promptMessageRef, {
       tokenCount: inputTokenCount,
     });
 
@@ -316,7 +284,6 @@ export const callAi = onCall<AiRequest>(
           messagesInOrderDoc: messagesInOrderDoc!,
           messagesRef,
           systemInstruction: conversation?.chatSettings?.systemInstruction,
-          userPrompt: prompt,
           responseFromModel: response.text,
         });
 
@@ -354,7 +321,6 @@ export const callAi = onCall<AiRequest>(
     );
 
     return {
-      promptId: newUserMessageRef.id,
       responseId: newModelMessageRef.id,
       response: response.text,
       conversationId,
@@ -367,7 +333,6 @@ export const callAi = onCall<AiRequest>(
 async function generateSummary({
   messagesInOrderDoc,
   responseFromModel,
-  userPrompt,
   systemInstruction,
   messagesRef,
 }: {
@@ -379,7 +344,6 @@ async function generateSummary({
     Message,
     admin.firestore.DocumentData
   >;
-  userPrompt: string;
   responseFromModel: string;
   systemInstruction?: string | null;
 }): Promise<{
@@ -394,7 +358,6 @@ async function generateSummary({
     ...(messagesInOrderDoc.size > 0
       ? getContentsArray(messagesInOrderDoc)
       : []),
-    { role: 'user', parts: [{ text: userPrompt }] },
     { role: 'model', parts: [{ text: responseFromModel }] },
     {
       role: 'user',

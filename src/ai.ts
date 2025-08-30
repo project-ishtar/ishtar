@@ -2,16 +2,16 @@ import { getFunctions, httpsCallable } from 'firebase/functions';
 import type { AiRequest, AiResponse } from '@ishtar/commons/types';
 
 export const getAiResponse = async ({
-  prompt,
+  promptMessageId,
   conversationId,
 }: {
-  prompt: string;
-  conversationId?: string;
+  promptMessageId: string;
+  conversationId: string;
 }): Promise<AiResponse> => {
   const callAi = httpsCallable<AiRequest, AiResponse>(getFunctions(), 'callAi');
 
   const response = await callAi({
-    prompt,
+    promptMessageId,
     conversationId,
   });
 
