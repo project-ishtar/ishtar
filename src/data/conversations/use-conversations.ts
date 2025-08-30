@@ -10,11 +10,11 @@ import {
   fetchConversation as fetchConversationFromDb,
 } from './conversations-functions.ts';
 import type { Conversation, DraftConversation } from '@ishtar/commons/types';
-import { useAuthenticated } from '../../auth/use-auth.ts';
 import { useCallback, useMemo } from 'react';
 import { addDoc, collection, doc, updateDoc } from 'firebase/firestore';
 import { firebaseApp } from '../../firebase.ts';
 import { conversationConverter } from '../../converters/conversation-converter.ts';
+import { useCurrentUser } from '../current-user/use-current-user.ts';
 
 type UseConversationsResult = {
   conversationsQuery: UseQueryResult<Conversation[], Error>;
@@ -35,7 +35,7 @@ type UseConversationsResult = {
 
 export const useConversations = (): UseConversationsResult => {
   const queryClient = useQueryClient();
-  const currentUserUid = useAuthenticated().currentUserUid;
+  const { currentUserUid } = useCurrentUser();
 
   const conversationsQuery = useQuery(
     conversationsQueryOptions(currentUserUid),

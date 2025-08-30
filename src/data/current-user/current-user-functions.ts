@@ -2,7 +2,6 @@ import { doc, getDoc } from 'firebase/firestore';
 import { firebaseApp } from '../../firebase.ts';
 import { userConverter } from '../../converters/user-converter.ts';
 import type { User } from '@ishtar/commons/types';
-import { queryOptions } from '@tanstack/react-query';
 
 export const fetchCurrentUser = async (currentUserUid: string) => {
   const userRef = doc(
@@ -19,9 +18,3 @@ export const fetchCurrentUser = async (currentUserUid: string) => {
 
   return userSnapshot.data() as User;
 };
-
-export const currentUserQueryOptions = (currentUserUid: string) =>
-  queryOptions({
-    queryKey: ['user', currentUserUid],
-    queryFn: () => fetchCurrentUser(currentUserUid),
-  });

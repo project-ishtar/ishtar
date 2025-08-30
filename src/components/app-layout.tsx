@@ -27,9 +27,8 @@ import { useGetConversations } from '../data/conversations/use-get-conversations
 import { useNavigate, useRouter } from '@tanstack/react-router';
 import { useAuthenticated } from '../auth/use-auth.ts';
 import { useConversations } from '../data/conversations/use-conversations.ts';
-import { useQuery } from '@tanstack/react-query';
-import { currentUserQueryOptions } from '../data/current-user/current-user-functions.ts';
 import Typography from '@mui/material/Typography';
+import { useCurrentUser } from '../data/current-user/use-current-user.ts';
 
 const drawerWidth = 240;
 
@@ -87,8 +86,7 @@ export const AppLayout = ({
 
   const { logout } = useAuthenticated();
 
-  const currentUserUid = useAuthenticated().currentUserUid;
-  const userQuery = useQuery(currentUserQueryOptions(currentUserUid));
+  const { currentUserQuery } = useCurrentUser();
 
   useEffect(() => {
     setDrawerOpen(!isMobile);
@@ -213,7 +211,7 @@ export const AppLayout = ({
               </ListItemButton>
             </ListItem>
           </List>
-          {userQuery.status === 'success' ? (
+          {currentUserQuery.status === 'success' ? (
             <Typography
               variant="caption"
               sx={{
@@ -223,7 +221,7 @@ export const AppLayout = ({
                 display: 'block',
               }}
             >
-              Logged in as {userQuery.data.email}
+              Logged in as {currentUserQuery.data.email}
             </Typography>
           ) : null}
         </Box>

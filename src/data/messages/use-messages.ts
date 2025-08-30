@@ -1,5 +1,4 @@
 import { Route } from '../../routes/_authenticated/app/{-$conversationId}.tsx';
-import { useAuthenticated } from '../../auth/use-auth.ts';
 import {
   type InfiniteData,
   useInfiniteQuery,
@@ -17,6 +16,7 @@ import type { InputFieldRef } from '../../components/input-field.tsx';
 import { useNavigate } from '@tanstack/react-router';
 import { useConversations } from '../conversations/use-conversations.ts';
 import type { Message } from '@ishtar/commons/types';
+import { useCurrentUser } from '../current-user/use-current-user.ts';
 
 const TEMP_PROMPT_ID = 'prompt_id';
 
@@ -42,7 +42,7 @@ export const useMessages = ({
   inputFieldRef,
   onTokenCountUpdate,
 }: UseMessagesProps): UseMessagesResult => {
-  const currentUserUid = useAuthenticated().currentUserUid;
+  const { currentUserUid } = useCurrentUser();
   const { conversationId } = Route.useParams();
   const navigate = useNavigate();
   const { fetchConversation } = useConversations();
