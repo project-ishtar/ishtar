@@ -15,7 +15,7 @@ import CircularProgress from '@mui/material/CircularProgress';
 type InputFieldProps = {
   autoFocus?: boolean;
   disabled?: boolean;
-  onSubmit: (prompt: string) => Promise<void>;
+  onSubmit: (prompt: string, files: File[]) => Promise<void>;
 };
 
 export type InputFieldRef = {
@@ -30,7 +30,7 @@ export const InputField = forwardRef<InputFieldRef, InputFieldProps>(
     const [prompt, setPrompt] = useState('');
 
     const doSubmit = useCallback(() => {
-      onSubmit(prompt);
+      onSubmit(prompt, []);
     }, [onSubmit, prompt]);
 
     const onInputKeyDown = useCallback(

@@ -9,13 +9,15 @@ import {
   type Cursor,
   fetchMessages,
   type MessagePage,
+  persistMessage,
 } from './messages-functions.ts';
 import { type RefObject, useCallback, useMemo } from 'react';
 import { getAiResponse as callAi } from '../../ai.ts';
 import type { InputFieldRef } from '../../components/input-field.tsx';
 import { useNavigate } from '@tanstack/react-router';
 import { useConversations } from '../conversations/use-conversations.ts';
-import type { Message } from '@ishtar/commons/types';
+import type { Content, Message } from '@ishtar/commons/types';
+import { isAllowedType, isDocument, isImage } from '../../utilities/file.ts';
 import { useCurrentUser } from '../current-user/use-current-user.ts';
 
 const TEMP_PROMPT_ID = 'prompt_id';
@@ -35,7 +37,7 @@ type UseMessagesResult = {
   hasPreviousPage: boolean;
   isFetchingPreviousPage: boolean;
   fetchPreviousPage: () => Promise<void>;
-  mutate: (prompt: string) => void;
+  mutate: (prompt: string, files: File[]) => void;
 };
 
 export const useMessages = ({
@@ -74,13 +76,50 @@ export const useMessages = ({
 
   const messages = useMemo(() => data ?? [], [data]);
 
-  const getResponseFromAi = useCallback(
-    async (prompt: string) => await callAi({ prompt, conversationId }),
+  const processPromptSubmit = useCallback(
+    async ({ prompt, files }: { prompt: string; files: File[] }) => {
+      const userContent: Content[] = [];
+
+      if (files.length > 0) {
+        files
+          .filter((file) => isAllowedType(file.type))
+          .forEach((file) => {
+            if (isImage(file.type)) {
+              userContent.push({
+                type: 'image',
+                imageUrl: { url: URL.createObjectURL(file) },
+              });
+            } else if (isDocument(file.type)) {
+              userContent.push({
+                type: 'text',
+                text: 'Extracted PDF Text',
+                sourceFileUrl: URL.createObjectURL(file),
+              });
+            }
+          });
+      }
+
+      userContent.push({ type: 'text', text: prompt });
+
+      persistMessage({
+        currentUserUid,
+        conversationId,
+        draftMessage: {
+          role: 'user',
+          contents: userContent,
+          isSummary: false,
+          timestamp: new Date(),
+          tokenCount: null,
+        },
+      });
+
+      return await callAi({ prompt, conversationId });
+    },
     [conversationId],
   );
 
   const messageUpdateMutation = useMutation({
-    mutationFn: getResponseFromAi,
+    mutationFn: processPromptSubmit,
     onMutate: (prompt) => {
       if (!conversationId) return;
 
@@ -221,7 +260,8 @@ export const useMessages = ({
   }, [doFetchPreviousPage]);
 
   const mutate = useCallback(
-    (prompt: string) => messageUpdateMutation.mutate(prompt),
+    (prompt: string, files: File[]) =>
+      messageUpdateMutation.mutate({ prompt, files }),
     [messageUpdateMutation],
   );
 
