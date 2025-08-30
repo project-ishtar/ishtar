@@ -51,7 +51,7 @@ export const useMessages = ({
 
   const { currentUserUid } = useCurrentUser();
 
-  const { persistConversation } = useConversations();
+  const { persistConversation, fetchConversation } = useConversations();
   const { getNewDefaultConversation } = useNewConversation();
 
   const queryClient = useQueryClient();
@@ -257,6 +257,8 @@ export const useMessages = ({
           },
         );
       } else if (data.conversationId) {
+        await fetchConversation(data.conversationId);
+
         await navigate({
           to: '/app/{-$conversationId}',
           params: { conversationId: data.conversationId },
@@ -293,6 +295,8 @@ export const useMessages = ({
             },
           );
         } else if (error.conversationId) {
+          await fetchConversation(error.conversationId);
+
           await navigate({
             to: '/app/{-$conversationId}',
             params: { conversationId: error.conversationId },
