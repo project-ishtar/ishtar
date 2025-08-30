@@ -16,7 +16,7 @@ import { getAiResponse as callAi } from '../../ai.ts';
 import type { InputFieldRef } from '../../components/input-field.tsx';
 import { useNavigate } from '@tanstack/react-router';
 import { useConversations } from '../conversations/use-conversations.ts';
-import type { ChatContent } from '@ishtar/commons/types';
+import type { Message } from '@ishtar/commons/types';
 
 const TEMP_PROMPT_ID = 'prompt_id';
 
@@ -29,7 +29,7 @@ type UseChatContentsProps = {
 };
 
 type UseChatContentsResult = {
-  chatContents: ChatContent[];
+  chatContents: Message[];
   status: 'error' | 'success' | 'pending';
   mutationStatus: 'idle' | 'pending' | 'error' | 'success';
   hasPreviousPage: boolean;
@@ -105,6 +105,9 @@ export const useChatContents = ({
                 id: TEMP_PROMPT_ID,
                 contents: [{ type: 'text', text: prompt }],
                 role: 'user',
+                tokenCount: null,
+                isSummary: false,
+                timestamp: new Date(),
               },
             ],
           };
@@ -142,11 +145,17 @@ export const useChatContents = ({
                     id: response.promptId,
                     contents: [{ type: 'text', text: prompt }],
                     role: 'user',
+                    tokenCount: null,
+                    isSummary: false,
+                    timestamp: new Date(),
                   },
                   {
                     id: response.responseId,
                     contents: [{ type: 'text', text: response.response }],
                     role: 'model',
+                    tokenCount: null,
+                    isSummary: false,
+                    timestamp: new Date(),
                   },
                 ],
               };

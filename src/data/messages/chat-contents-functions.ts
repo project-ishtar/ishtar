@@ -1,21 +1,21 @@
-import type { ChatContent, Message } from '@ishtar/commons/types';
+import type { Message } from '@ishtar/commons/types';
 import { firebaseApp } from '../../firebase.ts';
 import {
+  and,
   collection,
   getDocs,
+  limit,
   orderBy,
   query,
-  where,
-  and,
-  startAfter,
-  limit,
   type QueryDocumentSnapshot,
+  startAfter,
+  where,
 } from 'firebase/firestore';
 import { messageConverter } from '../../converters/message-converter.ts';
 
 export type Cursor = QueryDocumentSnapshot | undefined;
 
-export type MessagePage = { messages: ChatContent[]; nextCursor: Cursor };
+export type MessagePage = { messages: Message[]; nextCursor: Cursor };
 
 export const fetchMessages = async ({
   currentUserUid,
@@ -50,15 +50,8 @@ export const fetchMessages = async ({
 
   const messagesDocs = await getDocs(q);
 
-  const messages: ChatContent[] = messagesDocs.docs
-    .map((doc) => {
-      const message = doc.data() as Message;
-      return {
-        id: message.id,
-        role: message.role,
-        contents: message.contents,
-      };
-    })
+  const messages: Message[] = messagesDocs.docs
+    .map((doc) => doc.data() as Message)
     .reverse();
 
   const lastVisibleDoc = messagesDocs.docs[messagesDocs.docs.length - 1];

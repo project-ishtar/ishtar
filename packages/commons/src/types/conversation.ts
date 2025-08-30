@@ -23,7 +23,7 @@ export type Message = {
   contents: Content[];
   timestamp: Date;
   tokenCount: number | null;
-  isSummary: boolean | null;
+  isSummary: boolean;
 };
 
 export type Conversation = {
