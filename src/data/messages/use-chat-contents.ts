@@ -101,7 +101,11 @@ export const useChatContents = ({
             ...lastPage,
             messages: [
               ...lastPage.messages,
-              { id: TEMP_PROMPT_ID, text: prompt, role: 'user' },
+              {
+                id: TEMP_PROMPT_ID,
+                contents: [{ type: 'text', text: prompt }],
+                role: 'user',
+              },
             ],
           };
 
@@ -134,10 +138,14 @@ export const useChatContents = ({
                   ...lastPage.messages.filter(
                     (message) => message.id !== TEMP_PROMPT_ID,
                   ),
-                  { id: response.promptId, text: prompt, role: 'user' },
+                  {
+                    id: response.promptId,
+                    contents: [{ type: 'text', text: prompt }],
+                    role: 'user',
+                  },
                   {
                     id: response.responseId,
-                    text: response.response,
+                    contents: [{ type: 'text', text: response.response }],
                     role: 'model',
                   },
                 ],

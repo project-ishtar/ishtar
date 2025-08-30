@@ -56,7 +56,7 @@ export const fetchMessages = async ({
       return {
         id: message.id,
         role: message.role,
-        text: message.content,
+        contents: message.contents,
       };
     })
     .reverse();

@@ -7,10 +7,22 @@ export const messageConverter = converter<Message>({
     return {
       id,
       role: data.role,
-      content: data.content,
+      contents: data.contents,
       tokenCount: data.tokenCount,
       timestamp: (data.timestamp as unknown as Timestamp).toDate(),
       isSummary: data.isSummary,
+    };
+  },
+  toFirestore: (message) => {
+    return {
+      role: message.role,
+      contents: message.contents,
+      tokenCount: message.tokenCount ?? null,
+      isSummary: message.isSummary,
+      timestamp:
+        message.timestamp instanceof Date
+          ? Timestamp.fromDate(message.timestamp)
+          : message.timestamp,
     };
   },
 });

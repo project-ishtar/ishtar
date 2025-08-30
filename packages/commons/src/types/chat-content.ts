@@ -1,7 +1,7 @@
-import type { Role } from './conversation.ts';
+import type { Content, Role } from './conversation.ts';
 
 export type ChatContent = {
   id: string;
-  text: string;
+  contents: Content[];
   role: Role;
 };

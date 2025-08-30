@@ -7,7 +7,7 @@ export const chatMessageConverter = {
   toFirestore: (message: Message): DocumentData => {
     return {
       role: message.role,
-      content: message.content,
+      contents: message.contents,
       tokenCount: message.tokenCount,
       timestamp:
         message.timestamp instanceof Date
@@ -21,7 +21,7 @@ export const chatMessageConverter = {
     return {
       id: snapshot.id,
       role: data.role,
-      content: data.content,
+      contents: data.contents,
       tokenCount: data.tokenCount,
       timestamp: (
         data.timestamp as unknown as admin.firestore.Timestamp
