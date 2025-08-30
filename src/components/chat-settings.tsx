@@ -28,18 +28,16 @@ import { useCurrentConversation } from '../data/conversations/use-current-conver
 import { useConversations } from '../data/conversations/use-conversations.ts';
 import { useNavigate } from '@tanstack/react-router';
 import { useCurrentUser } from '../data/current-user/use-current-user.ts';
+import { Route } from '../routes/_authenticated/app/{-$conversationId}.tsx';
 
 type ChatSettingsProps = {
   isOpen: boolean;
   onClose: () => void;
-  conversationId?: string;
 };
 
-export const ChatSettings = ({
-  isOpen,
-  onClose,
-  conversationId,
-}: ChatSettingsProps) => {
+export const ChatSettings = ({ isOpen, onClose }: ChatSettingsProps) => {
+  const { conversationId } = Route.useParams();
+
   const globalSettings = getGlobalSettings(
     useCurrentUser().getCurrentUserOrThrow().role,
   );

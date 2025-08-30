@@ -29,6 +29,7 @@ import { useAuthenticated } from '../auth/use-auth.ts';
 import { useConversations } from '../data/conversations/use-conversations.ts';
 import Typography from '@mui/material/Typography';
 import { useCurrentUser } from '../data/current-user/use-current-user.ts';
+import { Route } from '../routes/_authenticated/app/{-$conversationId}.tsx';
 
 const drawerWidth = 240;
 
@@ -59,14 +60,11 @@ const Main = styled('main', { shouldForwardProp: (prop) => prop !== 'open' })<{
 type AppLayoutProps = {
   children: ReactNode;
   onSettingsClick: () => void;
-  conversationId?: string;
 };
 
-export const AppLayout = ({
-  children,
-  onSettingsClick,
-  conversationId,
-}: AppLayoutProps) => {
+export const AppLayout = ({ children, onSettingsClick }: AppLayoutProps) => {
+  const { conversationId } = Route.useParams();
+
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 

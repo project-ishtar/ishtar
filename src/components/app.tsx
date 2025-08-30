@@ -51,17 +51,13 @@ export const App = ({ conversationId }: AppProps) => {
 
   return (
     <>
-      <AppLayout
-        onSettingsClick={() => setSettingsOpen(true)}
-        conversationId={conversationId}
-      >
+      <AppLayout onSettingsClick={() => setSettingsOpen(true)}>
         <AiContent key={conversationId} />
       </AppLayout>
       <ChatSettings
         key={conversationId}
         isOpen={isSettingsOpen}
         onClose={() => setSettingsOpen(false)}
-        conversationId={conversationId}
       />
     </>
   );
