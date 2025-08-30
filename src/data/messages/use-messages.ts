@@ -16,9 +16,11 @@ import { getAiResponse as callAi } from '../../ai.ts';
 import type { InputFieldRef } from '../../components/input-field.tsx';
 import { useNavigate } from '@tanstack/react-router';
 import { useConversations } from '../conversations/use-conversations.ts';
-import type { Content, Message } from '@ishtar/commons/types';
+import type { AiResponse, Content, Message } from '@ishtar/commons/types';
 import { isAllowedType, isDocument, isImage } from '../../utilities/file.ts';
 import { useCurrentUser } from '../current-user/use-current-user.ts';
+import { useNewConversation } from '../conversations/use-new-conversation.ts';
+import { AiFailureError } from '../../errors/ai-failure-error.ts';
 
 const TEMP_PROMPT_ID = 'prompt_id';
 
@@ -44,14 +46,17 @@ export const useMessages = ({
   inputFieldRef,
   onTokenCountUpdate,
 }: UseMessagesProps): UseMessagesResult => {
-  const { currentUserUid } = useCurrentUser();
-  const { conversationId } = Route.useParams();
+  const { conversationId: currentConversationId } = Route.useParams();
   const navigate = useNavigate();
-  const { fetchConversation } = useConversations();
+
+  const { currentUserUid } = useCurrentUser();
+
+  const { persistConversation } = useConversations();
+  const { getNewDefaultConversation } = useNewConversation();
 
   const queryClient = useQueryClient();
 
-  const chatContentsQuery = [currentUserUid, 'messages', conversationId];
+  const messagesQuery = [currentUserUid, 'messages', currentConversationId];
 
   const {
     data,
@@ -60,11 +65,11 @@ export const useMessages = ({
     isFetchingPreviousPage,
     fetchPreviousPage: doFetchPreviousPage,
   } = useInfiniteQuery({
-    queryKey: chatContentsQuery,
+    queryKey: messagesQuery,
     queryFn: ({ pageParam }) =>
       fetchMessages({
         currentUserUid,
-        conversationId,
+        conversationId: currentConversationId,
         cursor: pageParam,
       }),
     initialPageParam: undefined,
@@ -77,7 +82,17 @@ export const useMessages = ({
   const messages = useMemo(() => data ?? [], [data]);
 
   const processPromptSubmit = useCallback(
-    async ({ prompt, files }: { prompt: string; files: File[] }) => {
+    async ({
+      prompt,
+      files,
+    }: {
+      prompt: string;
+      files: File[];
+    }): Promise<{
+      conversationId: string;
+      promptMessage: Message;
+      response: AiResponse;
+    }> => {
       const userContent: Content[] = [];
 
       if (files.length > 0) {
@@ -101,30 +116,63 @@ export const useMessages = ({
 
       userContent.push({ type: 'text', text: prompt });
 
-      persistMessage({
-        currentUserUid,
-        conversationId,
-        draftMessage: {
-          role: 'user',
-          contents: userContent,
-          isSummary: false,
-          timestamp: new Date(),
-          tokenCount: null,
-        },
-      });
+      const conversationId =
+        currentConversationId ??
+        (await persistConversation(getNewDefaultConversation()));
 
-      return await callAi({ prompt, conversationId });
+      let promptMessage: Message;
+
+      try {
+        promptMessage = await persistMessage({
+          currentUserUid,
+          conversationId: conversationId,
+          draftMessage: {
+            role: 'user',
+            contents: userContent,
+            isSummary: false,
+            timestamp: new Date(),
+            tokenCount: null,
+          },
+        });
+      } catch (error) {
+        throw new AiFailureError('Failed while persisting prompt message', {
+          conversationId,
+          originalError: error,
+        });
+      }
+
+      let response: AiResponse;
+
+      try {
+        response = await callAi({
+          promptMessageId: promptMessage.id,
+          conversationId,
+        });
+      } catch (error) {
+        throw new AiFailureError('Error in the Ai function', {
+          conversationId,
+          promptMessage,
+          originalError: error,
+        });
+      }
+
+      return { conversationId, promptMessage, response };
     },
-    [conversationId],
+    [
+      currentConversationId,
+      currentUserUid,
+      getNewDefaultConversation,
+      persistConversation,
+    ],
   );
 
   const messageUpdateMutation = useMutation({
     mutationFn: processPromptSubmit,
     onMutate: (prompt) => {
-      if (!conversationId) return;
+      if (!currentConversationId) return;
 
       queryClient.setQueryData<InfiniteData<MessagePage>>(
-        chatContentsQuery,
+        messagesQuery,
         (oldData) => {
           inputFieldRef.current?.setPrompt('');
 
@@ -142,7 +190,7 @@ export const useMessages = ({
               ...lastPage.messages,
               {
                 id: TEMP_PROMPT_ID,
-                contents: [{ type: 'text', text: prompt }],
+                contents: [{ type: 'text', text: prompt.prompt }],
                 role: 'user',
                 tokenCount: null,
                 isSummary: false,
@@ -156,15 +204,15 @@ export const useMessages = ({
       );
     },
 
-    onSuccess: async (response, prompt) => {
-      if (conversationId) {
+    onSuccess: async (data, variables) => {
+      if (currentConversationId) {
         onTokenCountUpdate(
-          response?.inputTokenCount ?? 0,
-          response?.outputTokenCount ?? 0,
+          data.response?.inputTokenCount ?? 0,
+          data.response?.outputTokenCount ?? 0,
         );
 
         queryClient.setQueryData<InfiniteData<MessagePage>>(
-          chatContentsQuery,
+          messagesQuery,
           (oldData) => {
             if (!oldData || oldData.pages.length === 0)
               throw new Error('No pages found');
@@ -173,24 +221,17 @@ export const useMessages = ({
             const lastPageIndex = newPages.length - 1;
             const lastPage = newPages[lastPageIndex];
 
-            if (response?.response) {
+            if (data?.response.response) {
               newPages[lastPageIndex] = {
                 ...lastPage,
                 messages: [
                   ...lastPage.messages.filter(
                     (message) => message.id !== TEMP_PROMPT_ID,
                   ),
+                  data.promptMessage,
                   {
-                    id: response.promptId,
-                    contents: [{ type: 'text', text: prompt }],
-                    role: 'user',
-                    tokenCount: null,
-                    isSummary: false,
-                    timestamp: new Date(),
-                  },
-                  {
-                    id: response.responseId,
-                    contents: [{ type: 'text', text: response.response }],
+                    id: data.response.responseId,
+                    contents: [{ type: 'text', text: data.response.response }],
                     role: 'model',
                     tokenCount: null,
                     isSummary: false,
@@ -205,53 +246,59 @@ export const useMessages = ({
                   ...lastPage.messages.filter(
                     (message) => message.id !== TEMP_PROMPT_ID,
                   ),
+                  data.promptMessage,
                 ],
               };
 
-              inputFieldRef.current?.setPrompt(prompt);
+              inputFieldRef.current?.setPrompt(variables.prompt);
             }
 
             return { ...oldData, pages: newPages };
           },
         );
-      } else if (response.conversationId) {
-        const conversation = await fetchConversation(response.conversationId);
-
-        if (conversation?.id) {
-          await navigate({
-            to: '/app/{-$conversationId}',
-            params: { conversationId: conversation.id },
-          });
-        }
+      } else if (data.conversationId) {
+        await navigate({
+          to: '/app/{-$conversationId}',
+          params: { conversationId: data.conversationId },
+        });
       }
     },
 
-    onError: (_, prompt) => {
-      inputFieldRef.current?.setPrompt(prompt);
+    onError: async (error, variables) => {
+      if (error instanceof AiFailureError) {
+        inputFieldRef.current?.setPrompt(variables.prompt);
 
-      queryClient.setQueryData<InfiniteData<MessagePage>>(
-        chatContentsQuery,
-        (oldData) => {
-          if (!oldData || oldData.pages.length === 0) {
-            return { pages: [], pageParams: [undefined] };
-          }
+        if (currentConversationId) {
+          queryClient.setQueryData<InfiniteData<MessagePage>>(
+            messagesQuery,
+            (oldData) => {
+              if (!oldData || oldData.pages.length === 0) {
+                return { pages: [], pageParams: [undefined] };
+              }
 
-          const newPages = [...oldData.pages];
-          const lastPageIndex = newPages.length - 1;
-          const lastPage = newPages[lastPageIndex];
+              const newPages = [...oldData.pages];
+              const lastPageIndex = newPages.length - 1;
+              const lastPage = newPages[lastPageIndex];
 
-          newPages[lastPageIndex] = {
-            ...lastPage,
-            messages: [
-              ...lastPage.messages.filter(
-                (message) => message.id !== TEMP_PROMPT_ID,
-              ),
-            ],
-          };
+              newPages[lastPageIndex] = {
+                ...lastPage,
+                messages: [
+                  ...lastPage.messages.filter(
+                    (message) => message.id !== TEMP_PROMPT_ID,
+                  ),
+                ],
+              };
 
-          return { ...oldData, pages: newPages };
-        },
-      );
+              return { ...oldData, pages: newPages };
+            },
+          );
+        } else if (error.conversationId) {
+          await navigate({
+            to: '/app/{-$conversationId}',
+            params: { conversationId: error.conversationId },
+          });
+        }
+      }
     },
   });
 

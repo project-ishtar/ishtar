@@ -23,6 +23,10 @@ type UseConversationsResult = {
 
   persistConversation: (
     draftConversation: DraftConversation,
+  ) => Promise<string>;
+
+  persistAndFetchConversation: (
+    draftConversation: DraftConversation,
   ) => Promise<Conversation>;
 
   updateConversation: (
@@ -86,9 +90,15 @@ export const useConversations = (): UseConversationsResult => {
         draftConversation,
       );
 
-      return await fetchConversation(newDocRef.id);
+      return newDocRef.id;
     },
-    [currentUserUid, fetchConversation],
+    [currentUserUid],
+  );
+
+  const persistAndFetchConversation = useCallback(
+    async (draftConversation: DraftConversation) =>
+      await fetchConversation(await persistConversation(draftConversation)),
+    [fetchConversation, persistConversation],
   );
 
   const updateConversation = useCallback(
@@ -140,6 +150,7 @@ export const useConversations = (): UseConversationsResult => {
       conversationsQuery,
       fetchConversation,
       persistConversation,
+      persistAndFetchConversation,
       updateConversation,
       deleteConversation,
     }),
@@ -147,6 +158,7 @@ export const useConversations = (): UseConversationsResult => {
       conversationsQuery,
       fetchConversation,
       persistConversation,
+      persistAndFetchConversation,
       updateConversation,
       deleteConversation,
     ],

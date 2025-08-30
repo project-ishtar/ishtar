@@ -81,7 +81,8 @@ export const ChatSettings = ({ isOpen, onClose }: ChatSettingsProps) => {
         : globalSettings.openAIReasoningEffort,
     );
 
-  const { persistConversation, updateConversation } = useConversations();
+  const { persistAndFetchConversation, updateConversation } =
+    useConversations();
 
   const navigate = useNavigate();
 
@@ -129,7 +130,8 @@ export const ChatSettings = ({ isOpen, onClose }: ChatSettingsProps) => {
         outputTokenCount: 0,
       };
 
-      const persistedConversation = await persistConversation(newConversation);
+      const persistedConversation =
+        await persistAndFetchConversation(newConversation);
 
       if (persistedConversation?.id) {
         navigate({
@@ -168,7 +170,7 @@ export const ChatSettings = ({ isOpen, onClose }: ChatSettingsProps) => {
       }
     }
   }, [
-    persistConversation,
+    persistAndFetchConversation,
     chatTitle,
     conversationId,
     enableMultiTurnConversation,
