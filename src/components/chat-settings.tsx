@@ -22,15 +22,14 @@ import type {
   DraftConversation,
   Model,
   OpenAIReasoningEffort,
-  User,
 } from '@ishtar/commons/types';
 import { getGlobalSettings } from '../data/global-settings.ts';
 import { useCurrentConversation } from '../data/conversations/use-current-conversation.ts';
 import { useConversations } from '../data/conversations/use-conversations.ts';
 import { useNavigate } from '@tanstack/react-router';
+import { useCurrentUser } from '../data/current-user/use-current-user.ts';
 
 type ChatSettingsProps = {
-  currentUser: User;
   isOpen: boolean;
   onClose: () => void;
   conversationId?: string;
@@ -39,10 +38,11 @@ type ChatSettingsProps = {
 export const ChatSettings = ({
   isOpen,
   onClose,
-  currentUser,
   conversationId,
 }: ChatSettingsProps) => {
-  const globalSettings = getGlobalSettings(currentUser.role);
+  const globalSettings = getGlobalSettings(
+    useCurrentUser().getCurrentUserOrThrow().role,
+  );
 
   const conversation = useCurrentConversation();
 
