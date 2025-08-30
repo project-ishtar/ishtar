@@ -1,12 +1,12 @@
-import type { ChatContent } from '@ishtar/commons/types';
 import type { VirtualItem } from '@tanstack/react-virtual';
 import { type JSX, useCallback } from 'react';
 import { Markdown } from '../markdown.tsx';
 import { Typography, Box } from '@mui/material';
+import type { Message } from '@ishtar/commons/types';
 
 type RenderMessageArgs = {
   virtualItem: VirtualItem;
-  message?: ChatContent;
+  message?: Message;
 };
 
 type UseRenderMessageReturn = {
@@ -23,12 +23,12 @@ type UseRenderMessageProps = {
 export const useRenderMessage = ({
   measureElement,
 }: UseRenderMessageProps): UseRenderMessageReturn => {
-  const renderModelText = (message: ChatContent) =>
+  const renderModelText = (message: Message) =>
     message.contents
       .filter((content) => content.type === 'text')
       .map((content) => <Markdown text={content.text} />);
 
-  const renderUserText = (message: ChatContent) =>
+  const renderUserText = (message: Message) =>
     message.contents
       .filter((content) => content.type === 'text')
       .map((content) => (
